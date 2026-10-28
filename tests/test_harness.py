@@ -59,8 +59,8 @@ def test_rodar_fase1_bloco_de_medias(dataset_mini, tmp_path):
     rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
     df = pd.read_csv(saida)
     medias = df[df["fold"] == "média"]
-    assert len(medias) == 2  # dummy_no e xgboost
-    for modelo in ("dummy_no", "xgboost"):
+    assert len(medias) == 3  # um bloco por modelo: dummy_no, xgboost e cba
+    for modelo in ("dummy_no", "xgboost", "cba"):
         folds = df[(df["modelo"] == modelo) & (df["fold"].astype(str).str.isdigit())]
         esperado = folds["f1_macro"].mean()
         registrado = medias[medias["modelo"] == modelo].iloc[0]["f1_macro"]
@@ -83,3 +83,14 @@ def test_rodar_fase1_dummy_tipo_precision(dataset_mini, tmp_path):
     folds = dummy[dummy["fold"].astype(str).str.isdigit()]
     assert (folds["precisao_Yes"] == 0).all()
     assert (folds["recall_Yes"] == 0).all()
+
+
+def test_rodar_fase1_cba_linhas_com_L_positivo(dataset_mini, tmp_path):
+    saida = tmp_path / "resultados.csv"
+    rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    df = pd.read_csv(saida)
+    cba = df[df["modelo"] == "cba"]
+    folds_cba = cba[cba["fold"].astype(str).str.isdigit()]
+    assert len(folds_cba) == 10
+    assert folds_cba["f1_macro"].between(0, 1).all()
+    assert (folds_cba["L"] > 0).all()
