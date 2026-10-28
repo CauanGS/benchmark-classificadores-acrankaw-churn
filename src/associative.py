@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 from pymcdm import normalizations
 from pymcdm.methods import TOPSIS
+from pymcdm.weights import standard_deviation_weights
 
 from src.rule_extraction import MAX_REGRAS, extrair_regras
 
@@ -106,13 +107,37 @@ def matriz_gf(regras: list[tuple], X_disc: pd.DataFrame, y) -> pd.DataFrame:
     return pd.DataFrame(linhas, columns=list(MEDIDAS_GF))
 
 
-def scores_topsis(matriz: pd.DataFrame) -> np.ndarray:
+def pesos_sd(matriz: pd.DataFrame) -> np.ndarray:
+    """Vetor de pesos [PM-SD]: desvio padrão por coluna, normalizado pela soma.
+
+    Algoritmo 1 do relatório de iniciação científica (STD weights do pymcdm,
+    Q11 de docs/DECISIONS.md): `std(coluna, ddof=1) / Σ std`. Reproduz o
+    exemplo literal do relatório (matriz [[1,10,100],[2,20,105],[3,30,95]] ⇒
+    pesos [0.0625, 0.625, 0.3125] — conferido no DECISIONS.md).
+
+    Matriz inteira constante (todas as colunas com norma de variância nula ⇒
+    divisão por zero no pymcdm) recebe pesos igualitários 1/k: degenera na
+    variante uniforme do AC.RankA, que é o comportamento esperado quando
+    nenhum critério discrimina. Colunas individuais com std = 0 recebem
+    peso 0 (guarda finesta do pymcdm: soma total > 0).
+    """
+    m = np.asarray(matriz, dtype=float)
+    k = m.shape[1]
+    std = np.std(m, axis=0, ddof=1)
+    total = std.sum()
+    if not np.isfinite(total) or total == 0:
+        return np.full(k, 1.0 / k)
+    return standard_deviation_weights(m)
+
+
+def scores_topsis(matriz: pd.DataFrame, pesos: np.ndarray | None = None) -> np.ndarray:
     """Score TOPSIS (maior = melhor) por linha da matriz regras × MOs [GF].
 
     TOPSIS com normalização vetorial pesada (Eq. 3 do paper): pymcdm 1.2.0
     com `vector_normalization`, `types` todos +1 (critério benefício) e pesos
-    uniformes (AC.RankA original). Colunas de norma zero (MO constante em 0 —
-    sem poder de discriminação) são descartadas antes da normalização: norma
+    uniformes (AC.RankA original) ou o vetor `pesos` informado (AC.RankAW,
+    [PM-SD]). Colunas de norma zero (MO constante em 0 — sem poder de
+    discriminação) são descartadas antes da normalização: norma
     zero ⇒ 0/0 = NaN no pymcdm, e coluna nula contribui com distância nula
     para todas as linhas (ranking equivalente com pesos uniformes). Scores
     NaN (linhas idênticas ⇒ D⁺ = D⁻ = 0) viram 0.0: empate cai na ordem de
@@ -126,19 +151,24 @@ def scores_topsis(matriz: pd.DataFrame) -> np.ndarray:
     n_crit = m_ativa.shape[1]
     if n_crit == 0:
         return np.zeros(m.shape[0])
-    pesos = np.ones(n_crit) / n_crit
+    if pesos is None:
+        pesos_ativos = np.ones(n_crit) / n_crit
+    else:
+        pesos_ativos = np.asarray(pesos, dtype=float)[ativos]
+        pesos_ativos = pesos_ativos / pesos_ativos.sum()
     topsis = TOPSIS(normalization_function=normalizations.vector_normalization)
     with np.errstate(invalid="ignore", divide="ignore"):
-        scores = topsis(m_ativa, pesos, np.ones(n_crit))
+        scores = topsis(m_ativa, pesos_ativos, np.ones(n_crit))
     return np.nan_to_num(scores, nan=0.0)
 
 
-def ranking_topsis(matriz: pd.DataFrame) -> list[int]:
+def ranking_topsis(matriz: pd.DataFrame, pesos: np.ndarray | None = None) -> list[int]:
     """Ranking decrescente do score TOPSIS; empate ⇒ ordem de extração.
 
     Retorna os índices das linhas de `matriz` (ordem de extração das regras).
+    `pesos` (opcional) segue a mesma semântica de `scores_topsis`.
     """
-    scores = scores_topsis(matriz)
+    scores = scores_topsis(matriz, pesos)
     return sorted(range(len(scores)), key=lambda i: (-scores[i], i))
 
 
@@ -204,3 +234,21 @@ class ACRankA(_MotorCBA):
             return []
         matriz = matriz_gf(regras, X, y)
         return [regras[i] for i in ranking_topsis(matriz)]
+
+
+class ACRankAW(ACRankA):
+    """AC.RankAW Ponderado `[GF][PM-SD][TS]` — AC.RankA com pesos [PM-SD].
+
+    Igual ao AC.RankA, mudando SOMENTE o vetor de pesos do TOPSIS: pesos
+    uniformes ⇒ pesos [PM-SD] via `pesos_sd(matriz_rules_x_mos)` (Algoritmo 1
+    do relatório — desvio padrão por coluna normalizado pela soma). Ranking,
+    poda M1 e predição [O] idênticas ao motor compartilhado. Como a matriz
+    regras × MOs é reconstruída a cada `fit` (um por fold de treino), os
+    pesos [PM-SD] são recalculados por fold — o algoritmo 1 do relatório.
+    """
+
+    def _ordenar(self, regras: list[tuple], X: pd.DataFrame, y: list[str]) -> list[tuple]:
+        if not regras:
+            return []
+        matriz = matriz_gf(regras, X, y)
+        return [regras[i] for i in ranking_topsis(matriz, pesos=pesos_sd(matriz))]

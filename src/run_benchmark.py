@@ -2,10 +2,30 @@
 
 Uso: python -m src.run_benchmark --phase 1|2|3
 
-Fase 1: benchmark dos modelos sobre o Telco Churn com StratifiedKFold
-(10 folds, shuffle, random_state=42), discretização MDLP por fold de
-treino e registro das métricas em outputs/benchmark_results.csv.
-Nesta fase cada fold registra dummy_no, xgboost (L=1), cba e ac_ranka.
+Pipeline comum às fases 1 e 2: benchmark dos modelos sobre o Telco Churn com
+StratifiedKFold (10 folds, shuffle, random_state=42), discretização MDLP por
+fold de treino e registro das métricas em CSV. Nesta etapa os modelos
+registrados são dummy_no, xgboost (L=1), cba, ac_ranka e ac_rankaw
+(`[GF][PM-SD][TS]` — pesos por desvio padrão, Algoritmo 1 do relatório).
+
+Semântica das fases (decisão de interface do Ticket 7):
+- **--phase 1**: pipeline completa, escrevendo `outputs/benchmark_results.csv`
+  e gerando artefatos SHAP do fold 0.
+- **--phase 2**: MESMA pipeline (todos os modelos; sem skip de dummy/xgboost
+  para simplificar o runner e o CSV harmonizado), a diferença principal é o
+  relatório de ΔL colunado em saída dedicada
+  (`outputs/benchmark_results_phase2.csv`), sem regenerar artefatos SHAP.
+  A explicação ao usuário final do portfólio fica no Ticket 8.
+
+Coluna `delta_L` (SDD 5.2, preenchida APENAS nas linhas de ac_rankaw):
+
+    ΔL = (L_CBA − L_AC.RankAW) / L_CBA × 100%
+
+- **Por fold**: L do CBA e do AC.RankAW no próprio fold.
+- **Bloco "média"**: ΔL recalculado a partir das MÉDIAS de L dos folds do
+  run atual — ΔL é uma razão, e a média de uma razão não é a razão das
+  médias; por isso NÃO é a média dos ΔL por fold.
+- Linhas de outros modelos: célula vazia (NaN).
 """
 
 from __future__ import annotations
@@ -19,7 +39,7 @@ import pandas as pd
 from sklearn.dummy import DummyClassifier
 from sklearn.model_selection import StratifiedKFold
 
-from src.associative import ACRankA, CBA
+from src.associative import ACRankA, ACRankAW, CBA
 from src.eda import ALVO, carregar_dataset
 from src.evaluation import f1_macro, precision_recall_por_classe
 from src.preprocessing import MDLPDiscretizer
@@ -27,8 +47,7 @@ from src.xgboost_model import gerar_artefatos_shap, treinar_e_prever
 
 ATRIBUTOS_IGNORADOS = ["customerID"]
 RANDOM_STATE = 42
-DIR_SAIDA_SHAP = "outputs"
-MODELOS_FASE1 = ("dummy_no", "xgboost", "cba", "ac_ranka")
+MODELOS_BENCHMARK = ("dummy_no", "xgboost", "cba", "ac_ranka", "ac_rankaw")
 COLUNAS_CSV = [
     "modelo",
     "fold",
@@ -38,6 +57,7 @@ COLUNAS_CSV = [
     "precisao_Yes",
     "recall_Yes",
     "L",
+    "delta_L",
 ]
 MENSAGEM_DATASET_AUSENTE = """\
 Dataset não encontrado em {caminho}.
@@ -49,7 +69,17 @@ e copie o CSV 'WA_Fn-UseC_-Telco-Customer-Churn.csv' para data/raw/.
 """
 
 
-def _linha_metricas(modelo: str, fold, y_teste, y_pred, L: int) -> dict:
+def delta_l(L_cba: int | float, L_aw: int | float) -> float:
+    """ΔL (SDD 5.2): (L_CBA − L_AC.RankAW)/L_CBA × 100.
+
+    Compara a média de L das 2 abordagens (poda M1 resultante); L_CBA ≥ 1
+    sempre (classe default), sem divisão por zero.
+    """
+    return (L_cba - L_aw) / L_cba * 100.0
+
+
+def _linha_metricas(modelo: str, fold, y_teste, y_pred, L: int,
+                    delta_L: float | None = None) -> dict:
     pr = precision_recall_por_classe(list(y_teste), list(y_pred))
     pr_no, pr_yes = pr.get("No"), pr.get("Yes")
     return {
@@ -61,10 +91,11 @@ def _linha_metricas(modelo: str, fold, y_teste, y_pred, L: int) -> dict:
         "precisao_Yes": pr_yes[0] if pr_yes else 0.0,
         "recall_Yes": pr_yes[1] if pr_yes else 0.0,
         "L": L,
+        "delta_L": float(delta_L) if delta_L is not None else np.nan,
     }
 
 
-def _linhas_da_fase1(df: pd.DataFrame, dir_saida: str | None = None) -> list[dict]:
+def _linhas_do_benchmark(df: pd.DataFrame, dir_saida: str | None = None) -> list[dict]:
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=RANDOM_STATE)
     X = df.drop(columns=[ALVO] + ATRIBUTOS_IGNORADOS)
     y = df[ALVO]
@@ -106,25 +137,50 @@ def _linhas_da_fase1(df: pd.DataFrame, dir_saida: str | None = None) -> list[dic
         linhas.append(_linha_metricas("ac_ranka", fold, y_teste, y_pred_acranka,
                                       L=int(modelo_acranka.L)))
 
+        # ac_rankaw: idem ac_ranka, pesos [PM-SD] recalculados por fold; ΔL
+        # é contra o CBA do MESMO fold (médias dentro do fold, não no run)
+        modelo_acrankaw = ACRankAW()
+        modelo_acrankaw.fit(X_treino_disc, y_treino)
+        y_pred_acrankaw = modelo_acrankaw.predict(X_teste_disc)
+        linhas.append(_linha_metricas("ac_rankaw", fold, y_teste, y_pred_acrankaw,
+                                      L=int(modelo_acrankaw.L),
+                                      delta_L=delta_l(int(modelo_cba.L), int(modelo_acrankaw.L))))
+
         # fold de referência (fold 0): artefatos SHAP do melhor modelo
         if fold == 0 and dir_saida is not None:
             gerar_artefatos_shap(melhor_pipeline, X_teste_disc, Path(dir_saida))
     return linhas
 
 
-def rodar_fase1(caminho_dataset: str, caminho_saida: str) -> None:
+def rodar_benchmark(caminho_dataset: str, caminho_saida: str,
+                    diretorio_shap: str | None = None) -> None:
+    """Pipeline comum às fases 1 e 2 (ver docstring do módulo).
+
+    `diretorio_shap`: gera artefatos SHAP do fold 0 (fase 1) ou None (fase 2,
+    que só registra o CSV com a coluna ΔL). Extração/poda/TOPSIS por fold;
+    pesos [PM-SD] recalculados por fold dentro de cada `fit` do AC.RankAW.
+    """
     arq_dataset, arq_saida = Path(caminho_dataset), Path(caminho_saida)
     if not arq_dataset.exists():
         raise FileNotFoundError(MENSAGEM_DATASET_AUSENTE.format(caminho=caminho_dataset))
 
     df = carregar_dataset(caminho_dataset).dropna(subset=["TotalCharges"]).reset_index(drop=True)
-    linhas = _linhas_da_fase1(df, dir_saida=str(arq_saida.parent))
+    linhas = _linhas_do_benchmark(df, dir_saida=diretorio_shap)
 
     folds = pd.DataFrame(linhas)
+    media_L_cba = folds[folds["modelo"] == "cba"]["L"].mean()
+    media_L_aw = folds[folds["modelo"] == "ac_rankaw"]["L"].mean()
+    delta_L_medio = delta_l(media_L_cba, media_L_aw)
+
     blocos_medias = []
-    for modelo in MODELOS_FASE1:
+    for modelo in MODELOS_BENCHMARK:
         bloco = folds[folds["modelo"] == modelo]
-        media = {c: round(float(bloco[c].mean()), 6) for c in COLUNAS_CSV if c not in ("modelo", "fold")}
+        media = {c: round(float(bloco[c].mean()), 6) for c in COLUNAS_CSV
+                 if c not in ("modelo", "fold")}
+        if modelo == "ac_rankaw":
+            # ΔL da média ≠ média dos ΔL (razão não-linear): recalculado a
+            # partir das médias de L do run atual (ver docstring do módulo).
+            media["delta_L"] = round(float(delta_L_medio), 6)
         blocos_medias.append({"modelo": modelo, "fold": "média", **media})
 
     folds = folds.assign(fold=folds["fold"].astype(str))
@@ -138,17 +194,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--phase", type=int, choices=[1, 2, 3], required=True, help="Fase do benchmark")
     args = parser.parse_args(argv)
 
-    if args.phase != 1:
-        print(f"Fase {args.phase} ainda não implementada neste ticket (planejada em issues futuras).")
-        return 2
-
     try:
-        rodar_fase1(caminho_dataset="data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv",
-                    caminho_saida="outputs/benchmark_results.csv")
+        if args.phase == 1:
+            rodar_benchmark(
+                caminho_dataset="data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv",
+                caminho_saida="outputs/benchmark_results.csv",
+                diretorio_shap="outputs",
+            )
+            print("Fase 1 concluída: outputs/benchmark_results.csv")
+        elif args.phase == 2:
+            rodar_benchmark(
+                caminho_dataset="data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv",
+                caminho_saida="outputs/benchmark_results_phase2.csv",
+                diretorio_shap=None,
+            )
+            print("Fase 2 concluída: outputs/benchmark_results_phase2.csv")
+        else:
+            print(f"Fase {args.phase} ainda não implementada neste ticket (planejada em issues futuras).")
+            return 2
     except FileNotFoundError as exc:
         print(str(exc))
         return 1
-    print("Fase 1 concluída: outputs/benchmark_results.csv")
     return 0
 
 

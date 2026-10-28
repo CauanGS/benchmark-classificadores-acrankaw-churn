@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.run_benchmark import rodar_fase1
+from src.run_benchmark import rodar_benchmark
 
 
 @pytest.fixture
@@ -34,9 +34,11 @@ def dataset_mini(tmp_path):
     return caminho
 
 
-def test_rodar_fase1_gera_csv_bem_formado(dataset_mini, tmp_path):
+def test_rodar_benchmark_gera_csv_bem_formado(dataset_mini, tmp_path):
     saida = tmp_path / "resultados.csv"
-    rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    rodar_benchmark(caminho_dataset=str(dataset_mini),
+                    caminho_saida=str(saida),
+                    diretorio_shap=str(tmp_path))
     df = pd.read_csv(saida)
     assert set(df.columns) == {
         "modelo",
@@ -47,6 +49,7 @@ def test_rodar_fase1_gera_csv_bem_formado(dataset_mini, tmp_path):
         "precisao_Yes",
         "recall_Yes",
         "L",
+        "delta_L",
     }
     dummy = df[df["modelo"] == "dummy_no"]
     assert sorted(dummy["fold"].unique()) == [str(i) for i in range(10)] + ["média"]
@@ -54,30 +57,30 @@ def test_rodar_fase1_gera_csv_bem_formado(dataset_mini, tmp_path):
     assert df["f1_macro"].between(0, 1).all()
 
 
-def test_rodar_fase1_bloco_de_medias(dataset_mini, tmp_path):
+def test_rodar_benchmark_bloco_de_medias(dataset_mini, tmp_path):
     saida = tmp_path / "resultados.csv"
-    rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    rodar_benchmark(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
     df = pd.read_csv(saida)
     medias = df[df["fold"] == "média"]
-    assert len(medias) == 4  # um bloco por modelo: dummy_no, xgboost, cba e ac_ranka
-    for modelo in ("dummy_no", "xgboost", "cba", "ac_ranka"):
+    assert len(medias) == 5  # um bloco por modelo: dummy_no, xgboost, cba, ac_ranka, ac_rankaw
+    for modelo in ("dummy_no", "xgboost", "cba", "ac_ranka", "ac_rankaw"):
         folds = df[(df["modelo"] == modelo) & (df["fold"].astype(str).str.isdigit())]
         esperado = folds["f1_macro"].mean()
         registrado = medias[medias["modelo"] == modelo].iloc[0]["f1_macro"]
         assert registrado == pytest.approx(esperado, abs=2e-6)
 
 
-def test_rodar_fase1_deterministico(dataset_mini, tmp_path):
+def test_rodar_benchmark_deterministico(dataset_mini, tmp_path):
     a = tmp_path / "a.csv"
     b = tmp_path / "b.csv"
-    rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(a))
-    rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(b))
+    rodar_benchmark(caminho_dataset=str(dataset_mini), caminho_saida=str(a))
+    rodar_benchmark(caminho_dataset=str(dataset_mini), caminho_saida=str(b))
     assert a.read_text() == b.read_text()
 
 
-def test_rodar_fase1_dummy_tipo_precision(dataset_mini, tmp_path):
+def test_rodar_benchmark_dummy_tipo_precision(dataset_mini, tmp_path):
     saida = tmp_path / "resultados.csv"
-    rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    rodar_benchmark(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
     df = pd.read_csv(saida)
     dummy = df[df["modelo"] == "dummy_no"]
     folds = dummy[dummy["fold"].astype(str).str.isdigit()]
@@ -85,9 +88,9 @@ def test_rodar_fase1_dummy_tipo_precision(dataset_mini, tmp_path):
     assert (folds["recall_Yes"] == 0).all()
 
 
-def test_rodar_fase1_cba_linhas_com_L_positivo(dataset_mini, tmp_path):
+def test_rodar_benchmark_cba_linhas_com_L_positivo(dataset_mini, tmp_path):
     saida = tmp_path / "resultados.csv"
-    rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    rodar_benchmark(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
     df = pd.read_csv(saida)
     cba = df[df["modelo"] == "cba"]
     folds_cba = cba[cba["fold"].astype(str).str.isdigit()]
@@ -96,12 +99,82 @@ def test_rodar_fase1_cba_linhas_com_L_positivo(dataset_mini, tmp_path):
     assert (folds_cba["L"] > 0).all()
 
 
-def test_rodar_fase1_ac_ranka_linhas_com_L_positivo(dataset_mini, tmp_path):
+def test_rodar_benchmark_ac_ranka_linhas_com_L_positivo(dataset_mini, tmp_path):
     saida = tmp_path / "resultados.csv"
-    rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    rodar_benchmark(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
     df = pd.read_csv(saida)
     ac = df[df["modelo"] == "ac_ranka"]
     folds_ac = ac[ac["fold"].astype(str).str.isdigit()]
     assert len(folds_ac) == 10
     assert folds_ac["f1_macro"].between(0, 1).all()
     assert (folds_ac["L"] > 0).all()
+
+
+def test_rodar_benchmark_ac_rankaw_linhas_com_L_positivo(dataset_mini, tmp_path):
+    saida = tmp_path / "resultados.csv"
+    rodar_benchmark(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    df = pd.read_csv(saida)
+    aw = df[df["modelo"] == "ac_rankaw"]
+    folds_aw = aw[aw["fold"].astype(str).str.isdigit()]
+    assert len(folds_aw) == 10
+    assert folds_aw["f1_macro"].between(0, 1).all()
+    assert (folds_aw["L"] > 0).all()
+
+
+# ---- ΔL (SDD 5.2): (L_CBA − L_AC.RankAW)/L_CBA × 100 ----
+
+def test_rodar_benchmark_delta_l_somente_linhas_ac_rankaw(dataset_mini, tmp_path):
+    saida = tmp_path / "resultados.csv"
+    rodar_benchmark(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    df = pd.read_csv(saida)
+    outros = df[df["modelo"] != "ac_rankaw"]
+    assert outros["delta_L"].isna().all()
+    aw = df[(df["modelo"] == "ac_rankaw") & (df["fold"].astype(str).str.isdigit())]
+    assert aw["delta_L"].notna().all()
+    # por fold: ΔL = (L_CBA_fold − L_AW_fold)/L_CBA_fold × 100
+    digitos = df["fold"].astype(str).str.isdigit()
+    cba_l = df[(df["modelo"] == "cba") & digitos].set_index("fold")["L"]
+    awl = aw.set_index("fold")
+    esperado = (cba_l - awl["L"]) / cba_l * 100
+    comparado = (awl["delta_L"] - esperado).abs()
+    assert (comparado < 2e-6).all()
+
+
+def test_rodar_benchmark_delta_l_media_das_medias_de_L(dataset_mini, tmp_path):
+    # No bloco "média": ΔL é recalculado a partir das MÉDIAS de L dos folds do
+    # run (a média de uma razão não é a razão das médias) — não é a média dos
+    # ΔL por fold.
+    saida = tmp_path / "resultados.csv"
+    rodar_benchmark(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    df = pd.read_csv(saida)
+    digitos = df["fold"].astype(str).str.isdigit()
+    media_L = (
+        df[digitos]
+        .groupby("modelo")["L"]
+        .mean()
+        .reindex(["cba", "ac_rankaw"])
+    )
+    esperado = (media_L["cba"] - media_L["ac_rankaw"]) / media_L["cba"] * 100
+    medias = df[df["fold"] == "média"]
+    registrado = medias[medias["modelo"] == "ac_rankaw"].iloc[0]["delta_L"]
+    assert registrado == pytest.approx(esperado, abs=2e-6)
+
+
+def test_rodar_benchmark_fase2_sem_arquivo_shap(dataset_mini, tmp_path):
+    # Fase 2 = mesma pipeline da fase 1 (todos os modelos); diferenças: só
+    # grava o CSV dedicado da fase e NÃO gera artefatos SHAP.
+    saida = tmp_path / "resultados_fase2.csv"
+    rodar_benchmark(
+        caminho_dataset=str(dataset_mini),
+        caminho_saida=str(saida),
+        diretorio_shap=None,
+    )
+    df = pd.read_csv(saida)
+    assert set(df.columns) == {
+        "modelo", "fold", "f1_macro", "precisao_No", "recall_No",
+        "precisao_Yes", "recall_Yes", "L", "delta_L",
+    }
+    aw = df[(df["modelo"] == "ac_rankaw") & (df["fold"].astype(str).str.isdigit())]
+    assert len(aw) == 10
+    assert aw["delta_L"].notna().all()
+    assert list((tmp_path).glob("**/*.png")) == []
