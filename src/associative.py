@@ -12,12 +12,19 @@
 - Predição [O]: classe da primeira regra do ranking que casa com a
   instância; fallback para a classe default.
 - L = nº de regras pós-poda + 1 (a classe default).
+
+AC.RankA (Dall'Agnol & Carvalho 2024) reutiliza o mesmo motor, trocando
+apenas a ordenação: TOPSIS (pymcdm, normalização vetorial pesada — Eq. 3 do
+paper) sobre a matriz regras × 13 MOs [GF] com pesos uniformes; empate no
+score cai na ordem de extração (determinismo).
 """
 
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from pymcdm import normalizations
+from pymcdm.methods import TOPSIS
 
 from src.rule_extraction import MAX_REGRAS, extrair_regras
 
@@ -99,17 +106,61 @@ def matriz_gf(regras: list[tuple], X_disc: pd.DataFrame, y) -> pd.DataFrame:
     return pd.DataFrame(linhas, columns=list(MEDIDAS_GF))
 
 
-class CBA:
-    """Classification Based on Association Rules (poda M1, predição [O])."""
+def scores_topsis(matriz: pd.DataFrame) -> np.ndarray:
+    """Score TOPSIS (maior = melhor) por linha da matriz regras × MOs [GF].
+
+    TOPSIS com normalização vetorial pesada (Eq. 3 do paper): pymcdm 1.2.0
+    com `vector_normalization`, `types` todos +1 (critério benefício) e pesos
+    uniformes (AC.RankA original). Colunas de norma zero (MO constante em 0 —
+    sem poder de discriminação) são descartadas antes da normalização: norma
+    zero ⇒ 0/0 = NaN no pymcdm, e coluna nula contribui com distância nula
+    para todas as linhas (ranking equivalente com pesos uniformes). Scores
+    NaN (linhas idênticas ⇒ D⁺ = D⁻ = 0) viram 0.0: empate cai na ordem de
+    extração pelo desempate do ranking.
+    """
+    m = np.asarray(matriz, dtype=float)
+    if m.shape[0] <= 1:
+        return np.zeros(m.shape[0])
+    ativos = np.sqrt((m ** 2).sum(axis=0)) > 0
+    m_ativa = m[:, ativos]
+    n_crit = m_ativa.shape[1]
+    if n_crit == 0:
+        return np.zeros(m.shape[0])
+    pesos = np.ones(n_crit) / n_crit
+    topsis = TOPSIS(normalization_function=normalizations.vector_normalization)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        scores = topsis(m_ativa, pesos, np.ones(n_crit))
+    return np.nan_to_num(scores, nan=0.0)
+
+
+def ranking_topsis(matriz: pd.DataFrame) -> list[int]:
+    """Ranking decrescente do score TOPSIS; empate ⇒ ordem de extração.
+
+    Retorna os índices das linhas de `matriz` (ordem de extração das regras).
+    """
+    scores = scores_topsis(matriz)
+    return sorted(range(len(scores)), key=lambda i: (-scores[i], i))
+
+
+class _MotorCBA:
+    """Motor comum a CBA e AC.RankA: extração → ordenação → poda M1 → predição.
+
+    O único ponto de variação entre os classificadores é `_ordenar`, que
+    recebe as regras extraídas (ordem de extração) e devolve a ordem usada
+    pela poda M1 e pela predição [O].
+    """
 
     def __init__(self, sup_min: float | None = None, max_regras: int = MAX_REGRAS):
         self.sup_min = sup_min
         self.max_regras = max_regras
 
-    def fit(self, X: pd.DataFrame, y) -> "CBA":
+    def _ordenar(self, regras: list[tuple], X: pd.DataFrame, y: list[str]) -> list[tuple]:
+        return ordenar_precedencia(regras)
+
+    def fit(self, X: pd.DataFrame, y) -> "_MotorCBA":
         y_arr = [str(v) for v in y]
         regras = extrair_regras(X, y_arr, sup_min=self.sup_min, max_regras=self.max_regras)
-        ordenadas = ordenar_precedencia(regras)
+        ordenadas = self._ordenar(regras, X, y_arr)
         transacoes = list(zip(_itens_da_linha(X), y_arr))
         self.regras_, self.classe_default_ = poda_m1(ordenadas, transacoes)
         return self
@@ -130,3 +181,26 @@ class CBA:
                     break
             preds.append(pred if pred is not None else self.classe_default_)
         return preds
+
+
+class CBA(_MotorCBA):
+    """Classification Based on Association Rules (poda M1, predição [O])."""
+
+    def __init__(self, sup_min: float | None = None, max_regras: int = MAX_REGRAS):
+        super().__init__(sup_min=sup_min, max_regras=max_regras)
+
+
+class ACRankA(_MotorCBA):
+    """AC.RankA (Dall'Agnol & Carvalho 2024) — CBA com ordenação por TOPSIS.
+
+    Igual ao CBA, mudando SOMENTE a ordenação das regras: a matriz
+    regras × 13 MOs [GF] entra no TOPSIS do pymcdm com normalização vetorial
+    pesada (Eq. 3 do paper) e vetor de pesos uniformes; ranking decrescente
+    do score, empate ⇒ ordem de extração. Poda M1 e predição [O] idênticas.
+    """
+
+    def _ordenar(self, regras: list[tuple], X: pd.DataFrame, y: list[str]) -> list[tuple]:
+        if not regras:
+            return []
+        matriz = matriz_gf(regras, X, y)
+        return [regras[i] for i in ranking_topsis(matriz)]
