@@ -20,6 +20,7 @@ import pandas as pd
 from sklearn.dummy import DummyClassifier
 from sklearn.model_selection import StratifiedKFold
 
+from src.associative import CBA
 from src.eda import ALVO, carregar_dataset
 from src.evaluation import f1_macro, precision_recall_por_classe
 from src.preprocessing import MDLPDiscretizer
@@ -46,6 +47,26 @@ e copie o CSV 'WA_Fn-UseC_-Telco-Customer-Churn.csv' para data/raw/.
 """
 
 
+def _linhas_de_um_modelo(
+    nome: str, modelo, X_treino_disc: pd.DataFrame, X_teste_disc: pd.DataFrame,
+    y_treino: np.ndarray, y_teste: np.ndarray,
+) -> dict:
+    modelo.fit(X_treino_disc, y_treino)
+    y_pred = modelo.predict(X_teste_disc)
+    pr = precision_recall_por_classe(list(y_teste), list(y_pred))
+    pr_no, pr_yes = pr.get("No"), pr.get("Yes")
+    return {
+        "modelo": nome,
+        "fold": None,
+        "f1_macro": f1_macro(list(y_teste), list(y_pred)),
+        "precisao_No": pr_no[0] if pr_no else 0.0,
+        "recall_No": pr_no[1] if pr_no else 0.0,
+        "precisao_Yes": pr_yes[0] if pr_yes else 0.0,
+        "recall_Yes": pr_yes[1] if pr_yes else 0.0,
+        "L": int(getattr(modelo, "L", 0) or 0),
+    }
+
+
 def _linhas_da_fase1(df: pd.DataFrame) -> list[dict]:
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=RANDOM_STATE)
     X = df.drop(columns=[ALVO] + ATRIBUTOS_IGNORADOS)
@@ -60,24 +81,21 @@ def _linhas_da_fase1(df: pd.DataFrame) -> list[dict]:
         X_treino_disc = discretizador.fit_transform(X_treino, y_treino)
         X_teste_disc = discretizador.transform(X_teste)
 
-        modelo = DummyClassifier(strategy="constant", constant="No", random_state=RANDOM_STATE)
-        modelo.fit(X_treino_disc, y_treino)
-        y_pred = modelo.predict(X_teste_disc)
-
-        pr = precision_recall_por_classe(list(y_teste), list(y_pred))
-        pr_no, pr_yes = pr.get("No"), pr.get("Yes")
-        linhas.append(
-            {
-                "modelo": "dummy_no",
-                "fold": fold,
-                "f1_macro": f1_macro(list(y_teste), list(y_pred)),
-                "precisao_No": pr_no[0] if pr_no else 0.0,
-                "recall_No": pr_no[1] if pr_no else 0.0,
-                "precisao_Yes": pr_yes[0] if pr_yes else 0.0,
-                "recall_Yes": pr_yes[1] if pr_yes else 0.0,
-                "L": 0,
-            }
+        linha = _linhas_de_um_modelo(
+            "dummy_no",
+            DummyClassifier(strategy="constant", constant="No", random_state=RANDOM_STATE),
+            X_treino_disc, X_teste_disc, y_treino, y_teste,
         )
+        linha["fold"] = fold
+        linhas.append(linha)
+
+        linha = _linhas_de_um_modelo(
+            "cba",
+            CBA(),
+            X_treino_disc, X_teste_disc, y_treino, y_teste,
+        )
+        linha["fold"] = fold
+        linhas.append(linha)
     return linhas
 
 
@@ -90,11 +108,16 @@ def rodar_fase1(caminho_dataset: str, caminho_saida: str) -> None:
     linhas = _linhas_da_fase1(df)
 
     folds = pd.DataFrame(linhas)
-    media = {c: round(float(folds[c].mean()), 6) for c in COLUNAS_CSV if c not in ("modelo", "fold")}
-    bloco_medias = {"modelo": "dummy_no", "fold": "média", **media}
+    blocos = []
+    for modelo in folds["modelo"].unique():
+        por_modelo = folds[folds["modelo"] == modelo]
+        media = {c: round(float(por_modelo[c].mean()), 6) for c in COLUNAS_CSV if c not in ("modelo", "fold")}
+        blocos.append({"modelo": modelo, "fold": "média", **media})
+    folds = folds.assign(fold=folds["fold"].astype(str))
+    bloco_medias = pd.DataFrame(blocos)
 
     arq_saida.parent.mkdir(parents=True, exist_ok=True)
-    out = pd.concat([folds, pd.DataFrame([bloco_medias])], ignore_index=True)[COLUNAS_CSV]
+    out = pd.concat([folds, bloco_medias], ignore_index=True)[COLUNAS_CSV]
     out.to_csv(arq_saida, index=False, float_format="%.6f")
 
 

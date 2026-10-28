@@ -61,9 +61,11 @@ def test_rodar_fase1_bloco_de_medias(dataset_mini, tmp_path):
     dummy = df[df["modelo"] == "dummy_no"]
     folds = dummy[dummy["fold"].astype(str).str.isdigit()]
     medias = df[df["fold"] == "média"]
-    assert len(medias) == 1
+    assert len(medias) == 2  # um bloco por modelo: dummy_no e cba
+    assert sorted(medias["modelo"]) == ["cba", "dummy_no"]
     esperado = folds["f1_macro"].mean()
-    assert medias.iloc[0]["f1_macro"] == pytest.approx(esperado, abs=2e-6)
+    bloco_dummy = medias[medias["modelo"] == "dummy_no"]
+    assert bloco_dummy.iloc[0]["f1_macro"] == pytest.approx(esperado, abs=2e-6)
 
 
 def test_rodar_fase1_deterministico(dataset_mini, tmp_path):
@@ -82,3 +84,14 @@ def test_rodar_fase1_dummy_tipo_precision(dataset_mini, tmp_path):
     folds = dummy[dummy["fold"].astype(str).str.isdigit()]
     assert (folds["precisao_Yes"] == 0).all()
     assert (folds["recall_Yes"] == 0).all()
+
+
+def test_rodar_fase1_cba_linhas_com_L_positivo(dataset_mini, tmp_path):
+    saida = tmp_path / "resultados.csv"
+    rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    df = pd.read_csv(saida)
+    cba = df[df["modelo"] == "cba"]
+    folds_cba = cba[cba["fold"].astype(str).str.isdigit()]
+    assert len(folds_cba) == 10
+    assert folds_cba["f1_macro"].between(0, 1).all()
+    assert (folds_cba["L"] > 0).all()
