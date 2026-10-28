@@ -5,7 +5,7 @@ Uso: python -m src.run_benchmark --phase 1|2|3
 Fase 1: benchmark dos modelos sobre o Telco Churn com StratifiedKFold
 (10 folds, shuffle, random_state=42), discretização MDLP por fold de
 treino e registro das métricas em outputs/benchmark_results.csv.
-Nesta fase cada fold registra dummy_no, xgboost (L=1) e cba.
+Nesta fase cada fold registra dummy_no, xgboost (L=1), cba e ac_ranka.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ import pandas as pd
 from sklearn.dummy import DummyClassifier
 from sklearn.model_selection import StratifiedKFold
 
-from src.associative import CBA
+from src.associative import ACRankA, CBA
 from src.eda import ALVO, carregar_dataset
 from src.evaluation import f1_macro, precision_recall_por_classe
 from src.preprocessing import MDLPDiscretizer
@@ -28,7 +28,7 @@ from src.xgboost_model import gerar_artefatos_shap, treinar_e_prever
 ATRIBUTOS_IGNORADOS = ["customerID"]
 RANDOM_STATE = 42
 DIR_SAIDA_SHAP = "outputs"
-MODELOS_FASE1 = ("dummy_no", "xgboost", "cba")
+MODELOS_FASE1 = ("dummy_no", "xgboost", "cba", "ac_ranka")
 COLUNAS_CSV = [
     "modelo",
     "fold",
@@ -98,6 +98,13 @@ def _linhas_da_fase1(df: pd.DataFrame, dir_saida: str | None = None) -> list[dic
         modelo_cba.fit(X_treino_disc, y_treino)
         y_pred_cba = modelo_cba.predict(X_teste_disc)
         linhas.append(_linha_metricas("cba", fold, y_teste, y_pred_cba, L=int(modelo_cba.L)))
+
+        # ac_ranka: idem cba, ordenando as regras por TOPSIS com pesos uniformes
+        modelo_acranka = ACRankA()
+        modelo_acranka.fit(X_treino_disc, y_treino)
+        y_pred_acranka = modelo_acranka.predict(X_teste_disc)
+        linhas.append(_linha_metricas("ac_ranka", fold, y_teste, y_pred_acranka,
+                                      L=int(modelo_acranka.L)))
 
         # fold de referência (fold 0): artefatos SHAP do melhor modelo
         if fold == 0 and dir_saida is not None:

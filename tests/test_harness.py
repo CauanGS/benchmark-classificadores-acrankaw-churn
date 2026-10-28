@@ -59,8 +59,8 @@ def test_rodar_fase1_bloco_de_medias(dataset_mini, tmp_path):
     rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
     df = pd.read_csv(saida)
     medias = df[df["fold"] == "média"]
-    assert len(medias) == 3  # um bloco por modelo: dummy_no, xgboost e cba
-    for modelo in ("dummy_no", "xgboost", "cba"):
+    assert len(medias) == 4  # um bloco por modelo: dummy_no, xgboost, cba e ac_ranka
+    for modelo in ("dummy_no", "xgboost", "cba", "ac_ranka"):
         folds = df[(df["modelo"] == modelo) & (df["fold"].astype(str).str.isdigit())]
         esperado = folds["f1_macro"].mean()
         registrado = medias[medias["modelo"] == modelo].iloc[0]["f1_macro"]
@@ -94,3 +94,14 @@ def test_rodar_fase1_cba_linhas_com_L_positivo(dataset_mini, tmp_path):
     assert len(folds_cba) == 10
     assert folds_cba["f1_macro"].between(0, 1).all()
     assert (folds_cba["L"] > 0).all()
+
+
+def test_rodar_fase1_ac_ranka_linhas_com_L_positivo(dataset_mini, tmp_path):
+    saida = tmp_path / "resultados.csv"
+    rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    df = pd.read_csv(saida)
+    ac = df[df["modelo"] == "ac_ranka"]
+    folds_ac = ac[ac["fold"].astype(str).str.isdigit()]
+    assert len(folds_ac) == 10
+    assert folds_ac["f1_macro"].between(0, 1).all()
+    assert (folds_ac["L"] > 0).all()

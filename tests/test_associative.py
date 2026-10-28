@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
-from src.associative import CBA, matriz_gf, ordenar_precedencia, poda_m1
+from src.associative import (
+    CBA,
+    ACRankA,
+    matriz_gf,
+    ordenar_precedencia,
+    poda_m1,
+    ranking_topsis,
+    scores_topsis,
+)
 from src.objective_measures import MEDIDAS_GF
 
 
@@ -131,3 +140,87 @@ def test_cba_deterministico():
     X2 = pd.DataFrame({"A": ["a1", "a2", "a3"], "B": ["b1", "b2", "b2"]})
     assert list(c1.predict(X2)) == list(c2.predict(X2))
     assert c1.regras_ == c2.regras_
+
+
+# ---- AC.RankA: ranking TOPSIS com pesos uniformes (normalização vetorial) ----
+
+def test_ranking_topsis_matriz_conhecida():
+    # m = [[3, 4], [1, 2]]; normas das colunas: √10 e √20; pesos uniformes ½.
+    # Normalizada: r0 = [3/√10, 4/√20], r1 = [1/√10, 2/√20] ⇒ r0 domina r1.
+    # D+r0 = 0, D-r0 = √(0.25/10 + 0.25/20) ⇒ V0 = 1.0; V1 = 0.0.
+    matriz = pd.DataFrame({"m1": [3.0, 1.0], "m2": [4.0, 2.0]})
+    assert ranking_topsis(matriz) == [0, 1]
+    assert scores_topsis(matriz) == pytest.approx([1.0, 0.0])
+
+
+def test_ranking_topsis_confere_com_pymcdm_vetorial():
+    # Verificação da configuração pymcdm 1.2.0 usada na implementação:
+    # vector_normalization + types todos +1 (benefício) + pesos uniformes
+    # reproduz os valores hand-computados do teste anterior.
+    from pymcdm import normalizations
+    from pymcdm.methods import TOPSIS
+
+    matriz = np.array([[3.0, 4.0], [1.0, 2.0]])
+    topsis = TOPSIS(normalization_function=normalizations.vector_normalization)
+    assert topsis(matriz, np.ones(2) / 2, np.ones(2)) == pytest.approx([1.0, 0.0])
+
+
+def test_ranking_topsis_invariancia_escala():
+    # Corolário do AC.RankA original (pesos uniformes): o score TOPSIS depende
+    # apenas da posição/valores normalizados — multiplicar qualquer coluna da
+    # matriz por constante positiva não muda o ranking. Coluna zerada (norma
+    # zero, sem poder de discriminação) inclusa no caso.
+    matriz = pd.DataFrame(
+        {
+            "a": [2.0, 5.0, 1.0, 4.0, 3.0],
+            "b": [0.0, 0.0, 0.0, 0.0, 0.0],
+            "c": [1.0, 2.0, 3.0, 5.0, 4.0],
+            "d": [-1.0, 0.5, -2.0, 1.0, 0.0],
+        }
+    )
+    escalada = matriz.copy()
+    escalada["a"] = escalada["a"] * 7.5
+    escalada["c"] = escalada["c"] * 0.02
+    escalada["d"] = escalada["d"] * 100.0
+    assert ranking_topsis(escalada) == ranking_topsis(matriz)
+
+
+def test_ranking_topsis_empate_ordem_de_extracao():
+    # Empate estrutural (linhas idênticas) ⇒ ordem de extração (índice).
+    matriz = pd.DataFrame({"m1": [1.0, 1.0, 1.0], "m2": [2.0, 2.0, 2.0]})
+    assert ranking_topsis(matriz) == [0, 1, 2]
+
+
+# ---- AC.RankA: integração do motor (poda M1 + predição [O] do CBA) ----
+
+def test_acranka_empate_estrutural_l_igual_cba():
+    # Fixture degenerado: todas as regras têm a MESMA contingência
+    # (n11=1, n10=0, n01=3, n00=0) ⇒ empate estrutural no TOPSIS; qualquer
+    # ordenação mantém as mesmas regras na poda M1 ⇒ L(AC.RankA) = L(CBA).
+    X = pd.DataFrame({"A": ["a1", "a2", "a3", "a4"]})
+    y = ["No", "No", "No", "No"]
+    ac = ACRankA(sup_min=0.25).fit(X, y)
+    cba = CBA(sup_min=0.25).fit(X, y)
+    assert ac.L == cba.L
+    assert list(ac.predict(X)) == ["No", "No", "No", "No"]
+
+
+def test_acranka_prediz_rotulos_validos_no_fixture_geral():
+    X = pd.DataFrame(
+        {"A": ["a1", "a1", "a2", "a3", "a3"], "B": ["b1", "b1", "b2", "b2", "b2"]}
+    )
+    y = ["No", "No", "Yes", "No", "No"]
+    ac = ACRankA(sup_min=0.2).fit(X, y)
+    preds = list(ac.predict(X))
+    assert set(preds) <= {"No", "Yes"}
+    assert ac.L >= 1
+
+
+def test_acranka_deterministico():
+    X = pd.DataFrame({"A": ["a1", "a1", "a2", "a3", "a2"], "B": ["b1", "b1", "b2", "b2", "b2"]})
+    y = ["No", "No", "Yes", "No", "Yes"]
+    a1 = ACRankA(sup_min=0.2).fit(X, y)
+    a2 = ACRankA(sup_min=0.2).fit(X, y)
+    X2 = pd.DataFrame({"A": ["a1", "a2", "a3"], "B": ["b1", "b2", "b2"]})
+    assert list(a1.predict(X2)) == list(a2.predict(X2))
+    assert a1.regras_ == a2.regras_
