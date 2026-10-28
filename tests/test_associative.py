@@ -7,11 +7,13 @@ import pandas as pd
 import pytest
 
 from src.associative import (
-    CBA,
     ACRankA,
+    ACRankAW,
+    CBA,
     matriz_gf,
     ordenar_precedencia,
     poda_m1,
+    pesos_sd,
     ranking_topsis,
     scores_topsis,
 )
@@ -224,3 +226,92 @@ def test_acranka_deterministico():
     X2 = pd.DataFrame({"A": ["a1", "a2", "a3"], "B": ["b1", "b2", "b2"]})
     assert list(a1.predict(X2)) == list(a2.predict(X2))
     assert a1.regras_ == a2.regras_
+
+
+# ---- AC.RankAW Ponderado: pesos [PM-SD] (Algoritmo 1 do relatório) ----
+
+def test_pesos_sd_exemplo_literal_relatorio():
+    # Relatório de iniciação científica (Algoritmo 1, [PM-SD]): desvio padrão
+    # por coluna (ddof=1) normalizado pela soma. Exemplo literal do relatório.
+    matriz = pd.DataFrame(
+        {"m1": [1.0, 2.0, 3.0], "m2": [10.0, 20.0, 30.0], "m3": [100.0, 105.0, 95.0]}
+    )
+    pesos = pesos_sd(matriz)
+    assert pesos == pytest.approx([0.0625, 0.625, 0.3125])
+
+
+def test_pesos_sd_matriz_variada_soma_1_positivos():
+    # Qualquer matriz com colunas não constantes: pesos somam 1 e são
+    # estritamente positivos (duas casas de variância diferentes escaladas).
+    matriz = pd.DataFrame(
+        {
+            "a": [2.0, 5.0, 1.0, 4.0, 3.0],
+            "b": [1000.0, 750.0, 500.0, 250.0, 100.0],
+            "c": [1.0, 2.0, 3.0, 5.0, 4.0],
+        }
+    )
+    pesos = pesos_sd(matriz)
+    assert pesos.sum() == pytest.approx(1.0)
+    assert (pesos > 0).all()
+
+
+def test_pesos_sd_matriz_constante_pesos_igualitarios():
+    # Matriz constante: std = 0 em toda coluna ⇒ 0/0; converção: pesos
+    # igualitários (mesma régua da variante uniforme do AC.RankA).
+    matriz = pd.DataFrame({"a": [2.0, 2.0, 2.0], "b": [5.0, 5.0, 5.0]})
+    pesos = pesos_sd(matriz)
+    assert pesos == pytest.approx([0.5, 0.5])
+
+
+def test_scores_topsis_consistente_com_pymcdm_com_pesos_sd():
+    # Configuração pymcdm 1.2.0 com vetor de pesos [PM-SD] explícito igual à
+    # chamada direta do TOPSIS (mesma normalização vetorial pesada e types +1).
+    from pymcdm import normalizations
+    from pymcdm.methods import TOPSIS
+
+    matriz = pd.DataFrame({"a": [1.0, 2.0, 3.0], "b": [10.0, 20.0, 30.0],
+                           "c": [100.0, 105.0, 95.0]})
+    w = pesos_sd(matriz)
+    topsis = TOPSIS(normalization_function=normalizations.vector_normalization)
+    esperado = np.nan_to_num(
+        topsis(np.asarray(matriz, float), w, np.ones(matriz.shape[1])), nan=0.0
+    )
+    assert scores_topsis(matriz, pesos=w) == pytest.approx(esperado)
+
+
+# ---- AC.RankAW Ponderado: integração [GF][PM-SD][TS] + poda M1 ----
+
+@pytest.fixture
+def fixture_variancia_discriminante():
+    # Fixture projetado para que o ranking ponderado [PM-SD] diferencie as
+    # regras de modo que a poda M1 mantenha MENOS regras que na variante
+    # uniforme (colunas de alta variância dominam a distância euclidiana).
+    X = pd.DataFrame(
+        {
+            "A0": ["v1", "v0", "v1", "v0", "v1"],
+            "A1": ["v1", "v1", "v1", "v0", "v1"],
+            "A2": ["v0", "v0", "v1", "v0", "v0"],
+        }
+    )
+    y = ["Yes", "Yes", "Yes", "Yes", "No"]
+    return X, y
+
+
+def test_acrankaw_l_menor_que_acranka(fixture_variancia_discriminante):
+    X, y = fixture_variancia_discriminante
+    acranka = ACRankA(sup_min=0.15).fit(X, y)
+    acrankaw = ACRankAW(sup_min=0.15).fit(X, y)
+    assert acrankaw.L < acranka.L
+    preds = list(acrankaw.predict(X))
+    assert set(preds) <= {"Yes", "No"}
+    assert len(preds) == len(y)
+
+
+def test_acrankaw_deterministico(fixture_variancia_discriminante):
+    X, y = fixture_variancia_discriminante
+    w1 = ACRankAW(sup_min=0.15).fit(X, y)
+    w2 = ACRankAW(sup_min=0.15).fit(X, y)
+    X2 = pd.DataFrame({"A0": ["v1", "v0"], "A1": ["v1", "v1"], "A2": ["v0", "v0"]})
+    assert list(w1.predict(X2)) == list(w2.predict(X2))
+    assert w1.regras_ == w2.regras_
+    assert w1.classe_default_ == w2.classe_default_
