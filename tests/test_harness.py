@@ -58,12 +58,13 @@ def test_rodar_fase1_bloco_de_medias(dataset_mini, tmp_path):
     saida = tmp_path / "resultados.csv"
     rodar_fase1(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
     df = pd.read_csv(saida)
-    dummy = df[df["modelo"] == "dummy_no"]
-    folds = dummy[dummy["fold"].astype(str).str.isdigit()]
     medias = df[df["fold"] == "média"]
-    assert len(medias) == 1
-    esperado = folds["f1_macro"].mean()
-    assert medias.iloc[0]["f1_macro"] == pytest.approx(esperado, abs=2e-6)
+    assert len(medias) == 2  # dummy_no e xgboost
+    for modelo in ("dummy_no", "xgboost"):
+        folds = df[(df["modelo"] == modelo) & (df["fold"].astype(str).str.isdigit())]
+        esperado = folds["f1_macro"].mean()
+        registrado = medias[medias["modelo"] == modelo].iloc[0]["f1_macro"]
+        assert registrado == pytest.approx(esperado, abs=2e-6)
 
 
 def test_rodar_fase1_deterministico(dataset_mini, tmp_path):
