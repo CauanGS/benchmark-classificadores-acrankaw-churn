@@ -295,6 +295,25 @@ def test_scores_topsis_consistente_com_pymcdm_com_pesos_sd():
     assert scores_topsis(matriz, pesos=w) == pytest.approx(esperado)
 
 
+def test_scores_topsis_trata_o_cps_como_beneficio_como_no_paper():
+    """Limitação documentada (decisão D7): o paper NÃO distingue critérios de
+    custo — nas Eq. (4)-(5) o ideal positivo é max{C_j} para todo critério j.
+    Logo o CPS (P(AB̄)/P(B̄), menor = melhor) entra como benefício: a regra
+    com CPS maior recebe o score maior. A alternativa "custo" (types=-1)
+    inverteria a ordem — não é adotada, por fidelidade ao paper."""
+    from pymcdm import normalizations
+    from pymcdm.methods import TOPSIS
+
+    matriz = pd.DataFrame({"cps": [0.0, 1.0], "outra": [1.0, 1.0]})
+    scores = scores_topsis(matriz)
+    assert scores[1] > scores[0]  # CPS alto = benefício
+
+    como_custo = TOPSIS(normalization_function=normalizations.vector_normalization)(
+        np.asarray(matriz, float), np.ones(2) / 2, np.array([-1, 1])
+    )
+    assert como_custo[0] > como_custo[1]  # com types=-1 a ordem se inverteria
+
+
 # ---- AC.RankAW Ponderado: integração [GF][PM-SD][TS] + poda M1 ----
 
 @pytest.fixture

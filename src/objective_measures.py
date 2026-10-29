@@ -78,6 +78,12 @@ def medida_gf(nome: str, n11: int, n10: int, n01: int, n00: int) -> float:
     if nome == "Odd Multiplier":  # P(AB)·P(B̄) / (P(B)·P(AB̄))
         return _razao(n11 * n_bbarra, n_b * n10)
     if nome == "Complement Class Support":  # P(AB̄)/P(B̄)
+        # CPS mede a força de cobertura da classe COMPLEMENTAR (P(AB̄)/P(B̄)):
+        # para ele, MENOR é melhor. O paper, porém, aplica o TOPSIS (Eq. 4-5)
+        # com `max{C_j}` como ideal positivo para TODOS os critérios — sem
+        # distinguir critérios de custo —, e é esse protocolo que o repo
+        # reproduz (ver `src.associative.scores_topsis` e a seção
+        # "Limitações conhecidas" do README).
         return _razao(n10, n_bbarra)
     if nome == "Conviction":  # P(A)·P(B̄) / P(AB̄)
         return _razao(n_a * n_bbarra, n * n10)

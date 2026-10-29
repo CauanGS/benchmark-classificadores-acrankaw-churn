@@ -158,6 +158,22 @@ def scores_topsis(matriz: pd.DataFrame, pesos: np.ndarray | None = None) -> np.n
     para todas as linhas (ranking equivalente com pesos uniformes). Scores
     NaN (linhas idênticas ⇒ D⁺ = D⁻ = 0) viram 0.0: empate cai na ordem de
     extração pelo desempate do ranking.
+
+    **Direção das MOs (limitação documentada):** o paper trata *todas* as MOs
+    como critério de **benefício** — nas Eq. (4) e (5) o ideal positivo é
+    `max{C_j}` e o ideal negativo `min{C_j}` para todo critério j, sem
+    qualquer distinção entre critérios de custo e de benefício ("All OMs, in
+    MCDA methods, receive the same weight with regard to the W vector").
+    Logo, a implementação é fiel ao paper: `types` = +1 em todas as colunas.
+
+    Consequência conhecida: o **Complement Class Support** (CPS) vale
+    P(AB̄)/P(B̄) (Table 11, ID 5) — mede a força de cobertura da classe
+    *complementar*, para a qual **menor é melhor**; tratá-lo como benefício
+    favorece regras com CPS alto. Como o paper não distingue critérios de
+    custo, o desvio do comportamento ideal é aceito e documentado (README,
+    seção "Limitações conhecidas"); a correção exigiria `types = -1` na
+    coluna do CPS (o pymcdm inverteria a coluna normalizada), o que se
+    afastaria do protocolo publicado.
     """
     m = np.asarray(matriz, dtype=float)
     if m.shape[0] <= 1:

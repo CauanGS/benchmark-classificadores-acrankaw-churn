@@ -72,6 +72,12 @@ O pipeline do paper (Dall'Agnol & Carvalho, IEEE Access 2024) tem quatro etapas:
 
 Protocolo: validação cruzada estratificada em **10 dobras** (`shuffle=True`, `random_state=42`), discretização **MDLP (Fayyad–Irani)** ajustada **só na dobra de treino** (anti-leakage) e, no XGBoost, busca *nested* de hiperparâmetros (`RandomizedSearchCV`, 30 iters, CV interna de 5 dobras, `scoring='f1_macro'`).
 
+### Limitação conhecida — direção do CPS no TOPSIS
+
+O *Complement Class Support* (CPS) vale `P(AB̄)/P(B̄)` (paper, Table 11, ID 5): mede a força de cobertura da classe **complementar**, para a qual **menor é melhor**. O TOPSIS do paper, porém, trata **todas** as MOs como critério de **benefício** — nas Eq. (4) e (5) o ideal positivo é `max{C_j}` e o ideal negativo `min{C_j}` para todo critério `j`, sem qualquer distinção entre custo e benefício ("*All OMs, in MCDA methods, receive the same weight with regard to the W vector*").
+
+Como o objetivo é **fidelidade ao protocolo publicado**, o repositório reproduz o paper: `types = +1` em todas as colunas do TOPSIS (`src/associative.py::scores_topsis`). A consequência é conhecida e está registrada: o TOPSIS recompensa o CPS alto (cobertura forte da classe complementar), quando o comportamento "ideal" da MO seria o oposto. Tratar o CPS como custo exigiria `types = -1` naquela coluna — o `pymcdm` inverteria a coluna normalizada —, o que se afastaria do paper e foi deixado como *trabalho futuro* (ablation), não como correção silenciosa do protocolo.
+
 ## 5. Fase 1 — benchmark inicial (baselines)
 
 `python -m src.run_benchmark --phase 1` executa a **Fase 1** (SDD §1.2): compara o baseline caixa-preta (`dummy_no` + `XGBoost + SHAP`, ramo 1 — dados contínuos/dummies) com os classificadores associativos de linha de base (`CBA` e `AC.RankA`, ramo 2 — dados discretizados). Grava `outputs/benchmark_results.csv` (linhas das 10 dobras + bloco "média" com **média ± desvio**) e os 6 PNGs de SHAP do fold 0 em `outputs/shap/`.
