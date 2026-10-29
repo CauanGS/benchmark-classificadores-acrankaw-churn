@@ -1,18 +1,24 @@
 """Classificador CBA (Liu et al. 1998) — precedência, poda M1 e predição [O].
 
+Protocolo (paper Dall'Agnol & Carvalho 2024, Algorithm 1; ver
+`docs/DECISIONS.md` §4 item 4 e §6 D1):
+
 - Precedência CBA: confiança ↓, suporte ↓, cardinalidade do antecedente ↑.
 - Poda [M1] varre as regras nessa ordem mantendo as transações vivas:
   uma regra entra no classificador se acertar (classificar corretamente)
   pelo menos uma transação viva dentre as que ela cobre; ao entrar, TODAS
   as transações cobertas por ela são deletadas — acertadas ou não
-  (protocolo do paper: Algorithm 1, linhas 11-14).
+  (Algorithm 1, linhas 11-14).
 - Classe default = maioria das transações ainda vivas, recalculada a cada
   iteração da poda; a default final é a última calculada (ou a maioria
-  global do treino, se nada restou) — empate resolvido pelo rótulo mais
-  comum… empate: menor rótulo em ordem alfabética → determinismo.
+  global do treino, se nada restou) — empate resolvido pelo menor rótulo
+  em ordem alfabética → determinismo.
 - Predição [O]: classe da primeira regra do ranking que casa com a
   instância; fallback para a classe default.
 - L = nº de regras pós-poda + 1 (a classe default).
+
+As regras são `Regra` (`src/regra.py`): tipo nomeado do domínio, com
+antecedente, classe, suporte, confiança e score de ordenação.
 
 AC.RankA (Dall'Agnol & Carvalho 2024) reutiliza o mesmo motor, trocando
 apenas a ordenação: TOPSIS (pymcdm, normalização vetorial pesada — Eq. 3 do
@@ -32,6 +38,7 @@ from pymcdm import normalizations
 from pymcdm.methods import TOPSIS
 from pymcdm.weights import standard_deviation_weights
 
+from src.regra import Regra
 from src.rule_extraction import MAX_REGRAS, extrair_regras
 
 
@@ -39,12 +46,13 @@ def _itens_da_linha(X: pd.DataFrame) -> list[frozenset[str]]:
     return [frozenset(f"{col}={str(X[col].iloc[i])}" for col in X.columns) for i in range(len(X))]
 
 
-def ordenar_precedencia(regras: list[tuple]) -> list[tuple]:
+def ordenar_precedencia(regras: list[Regra]) -> list[Regra]:
     """Ordena regras pela precedência CBA (conf ↓, sup ↓, antecedente menor)."""
     return sorted(
         regras,
-        key=lambda r2: (-round(r2[3], 12), -round(r2[2], 12), len(r2[0]),
-                        tuple(sorted(r2[0])), r2[1]),
+        key=lambda r2: (-round(r2.confianca, 12), -round(r2.suporte, 12),
+                        len(r2.antecedente), tuple(sorted(r2.antecedente)),
+                        r2.classe),
     )
 
 
@@ -57,42 +65,56 @@ def _classe_maioria(transacoes, indices) -> str:
     return sorted(contagens.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
 
 
-def poda_m1(regras_ordenadas, transacoes) -> tuple[list[tuple], str]:
-    """Poda cover-style [M1] sobre `(antecedente, classe, sup, conf)` ordenadas.
+def poda_m1(regras_ordenadas: list[Regra], transacoes) -> tuple[list[Regra], str]:
+    """Poda cover-style [M1] sobre as regras ordenadas pelo ranking.
 
     Protocolo do paper (Dall'Agnol & Carvalho 2024, Algorithm 1 — linhas 3-15;
-    Seção II-C-2 "Pruning"): para cada regra, varre-se o conjunto de transações
-    vivas D buscando as transações cobertas pela regra; se a regra classifica
-    corretamente pelo menos uma transação coberta viva, ela é marcada e entra
-    no classificador e, ao entrar, **TODAS** as transações cobertas são
-    deletadas de D (cobertas acertadas ou não). A classe default (maioria do
-    restante de D) é recalculada a cada iteração; a classe default final é a
-    última calculada (ou a maioria global do treino, se nada restou).
+    Seção II-C-2 "Pruning"; ver `docs/DECISIONS.md` §4 item 4 e §6 D1): para
+    cada regra, varre-se o conjunto de transações vivas D buscando as
+    transações cobertas pela regra; se a regra classifica corretamente pelo
+    menos uma transação coberta viva, ela é marcada e entra no classificador
+    e, ao entrar, **TODAS** as transações cobertas são deletadas de D
+    (cobertas acertadas ou não). A classe default (maioria do restante de D)
+    é recalculada a cada iteração; a classe default final é a última
+    calculada (ou a maioria global do treino, se nada restou).
 
     transacoes : lista [(itens_atributos: frozenset, classe: str), ...]
     Retorno: (regras mantidas na ordem, classe default do restante).
     """
-    if not transacoes:
-        raise ValueError("poda_m1 exige ao menos uma transação de treino.")
     vivas = list(range(len(transacoes)))
-    mantidas: list[tuple] = []
-    classe_default = _classe_maioria(transacoes, vivas)  # maioria global (fallback)
+
+    def classe_default_do_restante(vivas_restantes: list[int]) -> str | None:
+        """Classe default = maioria das transações vivas restantes.
+
+        `None` quando não sobra nenhuma transação: nesse caso o protocolo
+        mantém a última default calculada (ou a maioria global do treino).
+        """
+        if not vivas_restantes:
+            return None
+        return _classe_maioria(transacoes, vivas_restantes)
+
+    # Maioria global do treino: fallback quando nada restou ao fim da poda.
+    classe_default = classe_default_do_restante(vivas)
+    if classe_default is None:
+        raise ValueError("poda_m1 exige ao menos uma transação de treino.")
+
+    mantidas: list[Regra] = []
     for regra in regras_ordenadas:
-        antecedente, classe = regra[0], regra[1]
-        cobertas = [i for i in vivas if antecedente <= transacoes[i][0]]
-        if any(transacoes[i][1] == classe for i in cobertas):
+        cobertas = [i for i in vivas if regra.cobre(transacoes[i][0])]
+        if any(transacoes[i][1] == regra.classe for i in cobertas):
             mantidas.append(regra)
             # TODAS as transações cobertas são deletadas (acertos e erros).
             deletadas = set(cobertas)
             vivas = [i for i in vivas if i not in deletadas]
-            if vivas:
-                # Classe default recalculada a cada iteração (maioria do
-                # restante); se nada restou, mantém-se a última calculada.
-                classe_default = _classe_maioria(transacoes, vivas)
+            # Classe default recalculada a cada iteração (maioria do
+            # restante); se nada restou, mantém-se a última calculada.
+            default_atual = classe_default_do_restante(vivas)
+            if default_atual is not None:
+                classe_default = default_atual
     return mantidas, classe_default
 
 
-def matriz_gf(regras: list[tuple], X_disc: pd.DataFrame, y) -> pd.DataFrame:
+def matriz_gf(regras: list[Regra], X_disc: pd.DataFrame, y) -> pd.DataFrame:
     """Matriz regras × 13 MOs [GF] (linhas na ordem de entrada de `regras`).
 
     A contingência de cada regra é calculada sobre as N instâncias
@@ -111,10 +133,11 @@ def matriz_gf(regras: list[tuple], X_disc: pd.DataFrame, y) -> pd.DataFrame:
     classes_unicas = sorted(set(classes))
 
     linhas = []
-    for antecedente, classe, *_ in regras:
+    for regra in regras:
+        antecedente = regra.antecedente
         cobre = np.all([mascara_item[it] for it in sorted(antecedente)], axis=0) \
             if antecedente else np.ones(len(itens_por_instancia), dtype=bool)
-        da_classe = classes == str(classe)
+        da_classe = classes == str(regra.classe)
         n11 = int((cobre & da_classe).sum())
         n10 = int((cobre & ~da_classe).sum())
         n01 = int((~cobre & da_classe).sum())
@@ -159,6 +182,13 @@ def scores_topsis(matriz: pd.DataFrame, pesos: np.ndarray | None = None) -> np.n
     NaN (linhas idênticas ⇒ D⁺ = D⁻ = 0) viram 0.0: empate cai na ordem de
     extração pelo desempate do ranking.
 
+    **Guarda de divisão por zero (pesos ativos):** a renormalização dos pesos
+    informados é `w_ativos / Σ w_ativos`; se a soma dos pesos ATIVOS for 0
+    (ou não finita), a renormalização seria 0/0 ⇒ NaN silencioso. Nesse caso
+    o score cai em **pesos uniformes entre os critérios ativos** (1/k) — a
+    mesma convenção de `pesos_sd` para matriz degenerada — e o score continua
+    finito e determinístico.
+
     **Direção das MOs (limitação documentada):** o paper trata *todas* as MOs
     como critério de **benefício** — nas Eq. (4) e (5) o ideal positivo é
     `max{C_j}` e o ideal negativo `min{C_j}` para todo critério j, sem
@@ -187,7 +217,14 @@ def scores_topsis(matriz: pd.DataFrame, pesos: np.ndarray | None = None) -> np.n
         pesos_ativos = np.ones(n_crit) / n_crit
     else:
         pesos_ativos = np.asarray(pesos, dtype=float)[ativos]
-        pesos_ativos = pesos_ativos / pesos_ativos.sum()
+        soma = pesos_ativos.sum()
+        if not np.isfinite(soma) or soma == 0:
+            # Guarda de divisão por zero: pesos ativos com soma 0 (ou não
+            # finita) ⇒ uniformes entre os critérios ativos (1/k), em vez do
+            # NaN silencioso da renormalização 0/0.
+            pesos_ativos = np.ones(n_crit) / n_crit
+        else:
+            pesos_ativos = pesos_ativos / soma
     topsis = TOPSIS(normalization_function=normalizations.vector_normalization)
     with np.errstate(invalid="ignore", divide="ignore"):
         scores = topsis(m_ativa, pesos_ativos, np.ones(n_crit))
@@ -222,13 +259,14 @@ class _MotorCBA:
         self.max_regras = max_regras
         # Score de ordenação de cada regra extraída (ver `_ordenar`); é o
         # número que justifica a ordem do ranking (usado no export Fase 3).
-        self.scores_: dict[tuple, float] = {}
+        self.scores_: dict[Regra, float] = {}
 
-    def _ordenar(self, regras: list[tuple], X: pd.DataFrame, y: list[str]) -> list[tuple]:
+    def _ordenar(self, regras: list[Regra], X: pd.DataFrame, y: list[str]) -> list[Regra]:
         # CBA: o score de ordenação é a CONFIANÇA — critério primário da
         # precedência CBA (confiança ↓, suporte ↓, cardinalidade ↑).
-        self.scores_ = {regra: float(regra[3]) for regra in regras}
-        return ordenar_precedencia(regras)
+        pontuadas = [regra.com_score(regra.confianca) for regra in regras]
+        self.scores_ = {regra: float(regra.score) for regra in pontuadas}
+        return ordenar_precedencia(pontuadas)
 
     def fit(self, X: pd.DataFrame, y) -> "_MotorCBA":
         y_arr = [str(v) for v in y]
@@ -248,9 +286,9 @@ class _MotorCBA:
         preds = []
         for itens in _itens_da_linha(X):
             pred = None
-            for antecedente, classe, *_ in self.regras_:
-                if antecedente <= itens:
-                    pred = classe
+            for regra in self.regras_:
+                if regra.cobre(itens):
+                    pred = regra.classe
                     break
             preds.append(pred if pred is not None else self.classe_default_)
         return preds
@@ -276,7 +314,7 @@ class ACRankA(_MotorCBA):
         """Vetor de pesos do TOPSIS: uniforme (AC.RankA original)."""
         return None
 
-    def _ordenar(self, regras: list[tuple], X: pd.DataFrame, y: list[str]) -> list[tuple]:
+    def _ordenar(self, regras: list[Regra], X: pd.DataFrame, y: list[str]) -> list[Regra]:
         if not regras:
             self.scores_ = {}
             return []
@@ -284,8 +322,9 @@ class ACRankA(_MotorCBA):
         pesos = self._pesos(matriz)
         scores = scores_topsis(matriz, pesos)
         # Score de ordenação de cada regra (TOPSIS sobre as 13 MOs [GF]).
-        self.scores_ = {regra: float(score) for regra, score in zip(regras, scores)}
-        return [regras[i] for i in _rank_por_scores(scores)]
+        pontuadas = [regra.com_score(score) for regra, score in zip(regras, scores)]
+        self.scores_ = {regra: float(regra.score) for regra in pontuadas}
+        return [pontuadas[i] for i in _rank_por_scores(scores)]
 
 
 class ACRankAW(ACRankA):

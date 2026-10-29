@@ -3,8 +3,10 @@
 Uso: python -m src.run_benchmark --phase 1|2|3
 
 Protocolo comum às fases: benchmark sobre o Telco Churn com
-StratifiedKFold (10 folds, shuffle, random_state=42), discretização MDLP por
-fold de treino e registro das métricas em CSV.
+StratifiedKFold (10 dobras, shuffle, random_state=42), discretização MDLP por
+fold de treino e registro das métricas em CSV. O protocolo (constantes,
+dobras, discretização e métricas) vive em `src/protocolo.py`, compartilhado
+com o export da Fase 3 (`src/rule_export.py`).
 
 **Semântica das fases** (coerente com o SDD — §1.2 objetivos e §2 pipeline):
 
@@ -62,16 +64,21 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.dummy import DummyClassifier
-from sklearn.model_selection import StratifiedKFold
 
-from src.associative import ACRankA, ACRankAW, CBA
-from src.eda import ALVO, carregar_dataset
-from src.evaluation import f1_macro, precision_recall_por_classe
-from src.preprocessing import MDLPDiscretizer
+from src.protocolo import (
+    MODELOS_ASSOCIATIVOS,
+    RANDOM_STATE,
+    Dobra,
+    avaliar_associativos_dobra,
+    carregar_dataset_churn,
+    delta_l,
+    features_e_alvo,
+    frames_do_fold as _frames_do_fold,
+    metricas_da_dobra,
+    preparar_dobras,
+)
 from src.xgboost_model import gerar_artefatos_shap, treinar_e_prever
 
-ATRIBUTOS_IGNORADOS = ["customerID"]
-RANDOM_STATE = 42
 # Modelos de cada fase (SDD §1.2): a Fase 1 compara os baselines; a Fase 2
 # aplica o método proposto e mede o ΔL contra as referências do mesmo run.
 MODELOS_FASE_1 = ("dummy_no", "xgboost", "cba", "ac_ranka")
@@ -100,40 +107,16 @@ METRICAS_COM_DESVIO = (
     "delta_L_vs_acranka",
 )
 COLUNAS_DESVIO = [f"{m}_desvio" for m in METRICAS_COM_DESVIO]
-MENSAGEM_DATASET_AUSENTE = """\
-Dataset não encontrado em {caminho}.
-Baixe o Telco Customer Churn com:
-
-    python -c "import kagglehub; kagglehub.dataset_download('blastchar/telco-customer-churn')"
-
-e copie o CSV 'WA_Fn-UseC_-Telco-Customer-Churn.csv' para data/raw/.
-"""
-
-
-def delta_l(L_referencia: int | float, L_aw: int | float) -> float:
-    """ΔL (SDD 5.2): (L_referência − L_AC.RankAW)/L_referência × 100.
-
-    Compara a média de L das 2 abordagens (poda M1 resultante); L_referência
-    ≥ 1 sempre (classe default), sem divisão por zero. A referência é o CBA
-    (SDD 5.2) ou o AC.RankA (comparação entre os dois ranqueamentos).
-    """
-    return (L_referencia - L_aw) / L_referencia * 100.0
 
 
 def _linha_metricas(modelo: str, fold, y_teste, y_pred, L: int,
                     delta_L: float | None = None,
                     delta_L_vs_acranka: float | None = None) -> dict:
-    pr = precision_recall_por_classe(list(y_teste), list(y_pred))
-    pr_no, pr_yes = pr.get("No"), pr.get("Yes")
+    """Linha do CSV de uma dobra: métricas do protocolo + ΔL (quando houver)."""
     return {
         "modelo": modelo,
         "fold": fold,
-        "f1_macro": f1_macro(list(y_teste), list(y_pred)),
-        "precisao_No": pr_no[0] if pr_no else 0.0,
-        "recall_No": pr_no[1] if pr_no else 0.0,
-        "precisao_Yes": pr_yes[0] if pr_yes else 0.0,
-        "recall_Yes": pr_yes[1] if pr_yes else 0.0,
-        "L": L,
+        **metricas_da_dobra(y_teste, y_pred, L),
         "delta_L": float(delta_L) if delta_L is not None else np.nan,
         "delta_L_vs_acranka": (
             float(delta_L_vs_acranka) if delta_L_vs_acranka is not None else np.nan
@@ -146,25 +129,10 @@ def frames_do_fold(
 ) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
     """Frames de entrada dos dois ramos do pipeline experimental (SDD §2).
 
-    - ``"continuos"`` — **ramo 1 (Dados Contínuos/Dummies)**: frame ORIGINAL
-      (sem `customerID`), numéricas como estão e categóricas em texto (o
-      one-hot das categóricas vive dentro do pipeline do XGBoost, para não
-      vazar informação do fold de teste). É o frame do baseline caixa-preta.
-    - ``"discretizados"`` — **ramo 2 (Dados Categóricos Discretizados)**: bins
-      MDLP (Fayyad–Irani) ajustados **só** na dobra de treino (anti-leakage).
-      É o frame dos classificadores associativos (CBA, AC.RankA, AC.RankAW).
-
-    Devolve ``{"continuos": (X_treino, X_teste), "discretizados": (...)}``.
+    Seam público do runner; a implementação vive no protocolo comum
+    (`src/protocolo.py`), compartilhado com o export da Fase 3.
     """
-    X_cont = X_treino.drop(columns=[c for c in ATRIBUTOS_IGNORADOS if c in X_treino.columns])
-    X_cont_teste = X_teste.drop(columns=[c for c in ATRIBUTOS_IGNORADOS if c in X_teste.columns])
-    discretizador = MDLPDiscretizer().fit(X_treino, y_treino)
-    X_disc = discretizador.fit_transform(X_treino, y_treino)
-    X_disc_teste = discretizador.transform(X_teste)
-    return {
-        "continuos": (X_cont, X_cont_teste),
-        "discretizados": (X_disc, X_disc_teste),
-    }
+    return _frames_do_fold(X_treino, y_treino, X_teste)
 
 
 def _linhas_do_benchmark(
@@ -176,78 +144,76 @@ def _linhas_do_benchmark(
 
     `modelos` define o conjunto de modelos do run (Fase 1 ou Fase 2); o
     XGBoost só entra na Fase 1 (a Fase 2 não reexecuta a busca *nested*).
+    As dobras (split estratificado + MDLP por dobra) vêm do protocolo comum
+    (`src/protocolo.py`).
     """
-    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=RANDOM_STATE)
-    X = df.drop(columns=[ALVO] + ATRIBUTOS_IGNORADOS)
-    y = df[ALVO]
+    X, y = features_e_alvo(df)
+    dobras = preparar_dobras(X, y)
+    associativos = {
+        nome: MODELOS_ASSOCIATIVOS[nome]
+        for nome in modelos
+        if nome in MODELOS_ASSOCIATIVOS
+    }
 
     linhas: list[dict] = []
-    for fold, (idx_treino, idx_teste) in enumerate(skf.split(X, y)):
-        X_treino, X_teste = X.iloc[idx_treino], X.iloc[idx_teste]
-        y_treino, y_teste = y.iloc[idx_treino].to_numpy(), y.iloc[idx_teste].to_numpy()
+    for dobra in dobras:
+        linhas.extend(_linhas_do_ramo_continuo(dobra, modelos, dir_saida))
+        # Classificadores associativos (ramo 2 — dados discretizados).
+        linhas_associativas = avaliar_associativos_dobra(dobra, associativos)
+        _aplica_delta_l(linhas_associativas)
+        linhas.extend(linhas_associativas)
+    return linhas
 
-        frames = frames_do_fold(X_treino, y_treino, X_teste)
-        X_treino_cont, X_teste_cont = frames["continuos"]
-        X_treino_disc, X_teste_disc = frames["discretizados"]
 
-        melhor_pipeline = None
-        if "dummy_no" in modelos:
-            # dummy_no: baseline always "No" (features irrelevantes) — ramo 1
-            modelo_dummy = DummyClassifier(strategy="constant", constant="No", random_state=RANDOM_STATE)
-            modelo_dummy.fit(X_treino_cont, y_treino)
-            y_pred_dummy = modelo_dummy.predict(X_teste_cont)
-            linhas.append(_linha_metricas("dummy_no", fold, y_teste, y_pred_dummy, L=0))
+def _linhas_do_ramo_continuo(
+    dobra: Dobra, modelos: tuple[str, ...], dir_saida: str | None
+) -> list[dict]:
+    """Linhas do ramo 1 do SDD §2 (dados contínuos/dummies): dummy e XGBoost."""
+    linhas: list[dict] = []
+    if "dummy_no" in modelos:
+        # dummy_no: baseline que sempre responde "No" (atributos irrelevantes) — ramo 1
+        modelo_dummy = DummyClassifier(strategy="constant", constant="No", random_state=RANDOM_STATE)
+        modelo_dummy.fit(dobra.X_treino_cont, dobra.y_treino)
+        y_pred_dummy = modelo_dummy.predict(dobra.X_teste_cont)
+        linhas.append(_linha_metricas("dummy_no", dobra.fold, dobra.y_teste, y_pred_dummy, L=0))
 
-        if "xgboost" in modelos:
-            # xgboost: ramo 1 (atributos contínuos + dummies das categóricas),
-            # busca nested dentro do fold de treino (sem leakage)
-            y_pred_xgb, melhor_pipeline = treinar_e_prever(
-                X_treino_cont,
-                y.iloc[idx_treino],
-                X_teste_cont,
-                retornar_pipeline=True,
-            )
-            linhas.append(_linha_metricas("xgboost", fold, y_teste, y_pred_xgb, L=1))
-
-        L_cba = L_acranka = None
-        if "cba" in modelos:
-            # cba: extração de regras de associação sobre o fold de treino (ramo 2)
-            modelo_cba = CBA()
-            modelo_cba.fit(X_treino_disc, y_treino)
-            y_pred_cba = modelo_cba.predict(X_teste_disc)
-            L_cba = int(modelo_cba.L)
-            linhas.append(_linha_metricas("cba", fold, y_teste, y_pred_cba, L=L_cba))
-
-        if "ac_ranka" in modelos:
-            # ac_ranka: idem cba, ordenando as regras por TOPSIS com pesos uniformes
-            modelo_acranka = ACRankA()
-            modelo_acranka.fit(X_treino_disc, y_treino)
-            y_pred_acranka = modelo_acranka.predict(X_teste_disc)
-            L_acranka = int(modelo_acranka.L)
-            linhas.append(_linha_metricas("ac_ranka", fold, y_teste, y_pred_acranka,
-                                          L=L_acranka))
-
-        if "ac_rankaw" in modelos:
-            # ac_rankaw: idem ac_ranka, pesos [PM-SD] recalculados por fold; ΔL
-            # é contra o CBA e o AC.RankA do MESMO fold (médias dentro do
-            # fold, não no run)
-            modelo_acrankaw = ACRankAW()
-            modelo_acrankaw.fit(X_treino_disc, y_treino)
-            y_pred_acrankaw = modelo_acrankaw.predict(X_teste_disc)
-            linhas.append(_linha_metricas(
-                "ac_rankaw", fold, y_teste, y_pred_acrankaw,
-                L=int(modelo_acrankaw.L),
-                delta_L=delta_l(L_cba, int(modelo_acrankaw.L)) if L_cba else None,
-                delta_L_vs_acranka=(
-                    delta_l(L_acranka, int(modelo_acrankaw.L)) if L_acranka else None
-                ),
-            ))
+    if "xgboost" in modelos:
+        # xgboost: ramo 1 (atributos contínuos + dummies das categóricas),
+        # busca nested dentro do fold de treino (sem leakage)
+        y_pred_xgb, melhor_pipeline = treinar_e_prever(
+            dobra.X_treino_cont,
+            dobra.y_treino,
+            dobra.X_teste_cont,
+            retornar_pipeline=True,
+        )
+        linhas.append(_linha_metricas("xgboost", dobra.fold, dobra.y_teste, y_pred_xgb, L=1))
 
         # fold de referência (fold 0): artefatos SHAP do melhor modelo, no
         # frame do ramo 1 (contínuos/dummies)
-        if fold == 0 and dir_saida is not None and melhor_pipeline is not None:
-            gerar_artefatos_shap(melhor_pipeline, X_teste_cont, Path(dir_saida))
+        if dobra.fold == 0 and dir_saida is not None:
+            gerar_artefatos_shap(melhor_pipeline, dobra.X_teste_cont, Path(dir_saida))
     return linhas
+
+
+def _aplica_delta_l(linhas_associativas: list[dict]) -> None:
+    """Preenche o ΔL do AC.RankAW contra o CBA e o AC.RankA do MESMO fold.
+
+    O ΔL é calculado dentro da dobra (L da referência e L do AC.RankAW no
+    próprio fold); as linhas dos demais modelos ficam vazias (NaN).
+    """
+    L_por_modelo = {linha["modelo"]: linha["L"] for linha in linhas_associativas}
+    for linha in linhas_associativas:
+        delta = np.nan
+        delta_vs_acranka = np.nan
+        if linha["modelo"] == "ac_rankaw":
+            L_cba = L_por_modelo.get("cba")
+            L_acranka = L_por_modelo.get("ac_ranka")
+            if L_cba:
+                delta = delta_l(L_cba, linha["L"])
+            if L_acranka:
+                delta_vs_acranka = delta_l(L_acranka, linha["L"])
+        linha["delta_L"] = delta
+        linha["delta_L_vs_acranka"] = delta_vs_acranka
 
 
 def _escrever_csv(
@@ -292,14 +258,6 @@ def _escrever_csv(
     out.to_csv(arq_saida, index=False, float_format="%.6f")
 
 
-def _carregar(caminho_dataset: str) -> pd.DataFrame:
-    """Dataset de churn validado (EDA) e sem `TotalCharges` nulo."""
-    arq = Path(caminho_dataset)
-    if not arq.exists():
-        raise FileNotFoundError(MENSAGEM_DATASET_AUSENTE.format(caminho=caminho_dataset))
-    return carregar_dataset(caminho_dataset).dropna(subset=["TotalCharges"]).reset_index(drop=True)
-
-
 def rodar_fase_1(
     caminho_dataset: str,
     caminho_saida: str,
@@ -312,7 +270,7 @@ def rodar_fase_1(
     (o frame do ramo 1 — contínuos/dummies). Extração/poda/TOPSIS por fold;
     pesos [PM-SD] recalculados por fold dentro de cada `fit` do AC.RankAW.
     """
-    df = _carregar(caminho_dataset)
+    df = carregar_dataset_churn(caminho_dataset)
     linhas = _linhas_do_benchmark(df, MODELOS_FASE_1, dir_saida=diretorio_shap)
     _escrever_csv(linhas, MODELOS_FASE_1, caminho_saida)
 
@@ -324,7 +282,7 @@ def rodar_fase_2(caminho_dataset: str, caminho_saida: str) -> None:
     AC.RankAW Ponderado; **não** reexecuta a busca *nested* do XGBoost (o
     baseline da Fase 1) nem gera artefatos SHAP. Escreve `caminho_saida`.
     """
-    df = _carregar(caminho_dataset)
+    df = carregar_dataset_churn(caminho_dataset)
     linhas = _linhas_do_benchmark(df, MODELOS_FASE_2, dir_saida=None)
     _escrever_csv(linhas, MODELOS_FASE_2, caminho_saida)
 

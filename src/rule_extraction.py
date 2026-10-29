@@ -7,15 +7,19 @@ Protocolo (docs/DECISIONS.md Q10 / paper AC.RankA Seção de extração):
   número de regras de classe ser ≤ `max_regras` (padrão 10.000).
 - conf-min = 0 (todas as regras do sup-min); regras cujo antecedente tem
   no máximo `max_antecedente` itens (itemset de classe ≤ max + 1 itens).
+
+As regras extraídas são do tipo nomeado `Regra` (`src/regra.py`); o score de
+ordenação (`Regra.score`) é preenchido depois, pelo classificador.
 """
 
 from __future__ import annotations
 
-from collections import OrderedDict
 from typing import Callable
 
 import pandas as pd
 from mlxtend.frequent_patterns import apriori
+
+from src.regra import Regra
 
 SUP_MIN_INICIAL = 0.10
 FATOR_DECAY = 0.5
@@ -45,12 +49,14 @@ def extrair_regras(
     sup_min: float | None = None,
     max_regras: int = MAX_REGRAS,
     max_antecedente: int = MAX_ANTECEDENTE,
-) -> list[tuple[frozenset[str], str, float, float]]:
-    """Extrai regras de classe `(antecedente, consequente, suporte, confiança)`.
+) -> list[Regra]:
+    """Extrai regras de classe (`Regra`: antecedente, classe, suporte, confiança).
 
     O antecedente é um frozenset de itens "coluna=valor" (1..max_antecedente
     itens); o consequente é o rótulo de classe. O suporte/confiança são
     relativos às N transações de `X`. Ordenação estável (por itemset).
+    O `score` de ordenação fica `None` — é preenchido pelo classificador
+    (TOPSIS no AC.RankA/AC.RankAW, confiança no CBA).
     """
     if sup_min is None:
         def contagem(s: float) -> int:
@@ -63,7 +69,7 @@ def extrair_regras(
     suportes = {frozenset(s): p for s, p in zip(itemsets["itemsets"], itemsets["support"])}
 
     classes = sorted(set(pd.Series(y)))
-    regras: list[tuple[frozenset[str], str, float, float]] = []
+    regras: list[Regra] = []
     for chave, sup in suportes.items():
         if len(chave) < 1:
             continue
@@ -79,9 +85,9 @@ def extrair_regras(
         sup_ant = suportes.get(antecedente)
         if sup_ant is None or sup_ant == 0:
             continue
-        regras.append((antecedente, classe, float(sup), float(sup / sup_ant)))
+        regras.append(Regra(antecedente, classe, float(sup), float(sup / sup_ant)))
 
-    regras.sort(key=lambda r: (tuple(sorted(r[0])), r[1]))
+    regras.sort(key=lambda r: (tuple(sorted(r.antecedente)), r.classe))
     return regras
 
 

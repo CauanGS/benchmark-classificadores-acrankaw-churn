@@ -140,6 +140,22 @@ def test_nomes_das_13_mos():
     assert set(MEDIDAS_GF) == esperado
 
 
+def test_mapa_de_calculo_das_mos_tem_a_ordem_canonica():
+    """As 13 MOs [GF] são despachadas por um mapa nome→função (sem cascata de
+    `if`), na mesma ordem canônica de `MEDIDAS_GF`."""
+    from src.objective_measures import CALCULOS_GF, MEDIDAS_GF
+
+    assert list(CALCULOS_GF) == list(MEDIDAS_GF)
+    assert all(callable(calculo) for calculo in CALCULOS_GF.values())
+
+
+def test_cada_mo_do_mapa_devolve_o_valor_canonico():
+    from src.objective_measures import CALCULOS_GF
+
+    for nome, calculo in CALCULOS_GF.items():
+        assert calculo(*CASO) == pytest.approx(medida_gf(nome, *CASO)), nome
+
+
 def test_medida_desconhecida():
     with pytest.raises(ValueError):
         medida_gf("Kick", 1, 1, 1, 1)

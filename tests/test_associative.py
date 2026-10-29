@@ -18,10 +18,33 @@ from src.associative import (
     scores_topsis,
 )
 from src.objective_measures import MEDIDAS_GF
+from src.regra import Regra
 
 
-def r(antecedente: frozenset, classe: str, conf: float, sup: float):
-    return (antecedente, classe, sup, conf)
+def r(antecedente: frozenset, classe: str, conf: float, sup: float) -> Regra:
+    """Regra de teste — `conf` = confiança, `sup` = suporte."""
+    return Regra(antecedente, classe, sup, conf)
+
+
+# ---- Regra: tipo nomeado do domínio ----
+def test_regra_expoe_campos_nomeados():
+    regra = Regra(frozenset({"a=1"}), "Yes", 0.3, 0.6)
+    assert regra.antecedente == frozenset({"a=1"})
+    assert regra.classe == "Yes"
+    assert regra.suporte == 0.3
+    assert regra.confianca == 0.6
+    assert regra.score is None
+    assert regra.com_score(0.9).score == 0.9
+    assert regra.cobre(frozenset({"a=1", "b=2"}))
+    assert not regra.cobre(frozenset({"b=2"}))
+
+
+def test_regra_com_score_preserva_o_resto_dos_campos():
+    regra = Regra(frozenset({"a=1"}), "No", 0.25, 0.75)
+    pontuada = regra.com_score(0.5)
+    assert (pontuada.antecedente, pontuada.classe) == (regra.antecedente, regra.classe)
+    assert (pontuada.suporte, pontuada.confianca) == (regra.suporte, regra.confianca)
+    assert regra.score is None  # a original não é mutada
 
 
 # ---- Precedência: confiança ↓, suporte ↓, antecedente menor primeiro ----
@@ -33,7 +56,7 @@ def test_precedencia_ordem():
         r(frozenset({"a", "b"}), "No", 0.7, 0.3),
     ]
     ordem = ordenar_precedencia(regras)
-    assert [(x[0], x[2]) for x in ordem] == [
+    assert [(x.antecedente, x.suporte) for x in ordem] == [
         (frozenset({"b"}), 0.1),
         (frozenset({"a", "b", "c"}), 0.1),
         (frozenset({"a"}), 0.3),
@@ -63,7 +86,7 @@ def test_poda_m1_cenario_classico():
         r(frozenset({"a2"}), "Yes", 1.0, 0.25),  # acerta t2 => entra
     ]
     mantidas, default = poda_m1(regras, transacoes)
-    assert [x[0] for x in mantidas] == [frozenset({"a1"}), frozenset({"a2"})]
+    assert [x.antecedente for x in mantidas] == [frozenset({"a1"}), frozenset({"a2"})]
     assert default == "No"  # maioria do restante (t3, t4)
 
 
@@ -81,7 +104,7 @@ def test_poda_m1_deleta_todas_as_transacoes_cobertas():
     regras = [r(frozenset({"a1"}), "Yes", 0.25, 0.8)]
     mantidas, default = poda_m1(regras, transacoes)
     # a regra cobre a classe errada e ainda assim é mantida (acerta t0)
-    assert [x[0] for x in mantidas] == [frozenset({"a1"})]
+    assert [x.antecedente for x in mantidas] == [frozenset({"a1"})]
     # t1..t3 (erros) foram deletadas: o default é o do RESTANTE (t4 => "Yes"),
     # não a maioria global do treino ("No": 3 No × 2 Yes).
     assert default == "Yes"
@@ -99,7 +122,7 @@ def test_poda_m1_regra_posterior_perde_a_transacao_certa_deletada():
         r(frozenset({"a2"}), "No", 1.0, 0.5),
     ]
     mantidas, default = poda_m1(regras, transacoes)
-    assert [x[0] for x in mantidas] == [frozenset({"a1"})]
+    assert [x.antecedente for x in mantidas] == [frozenset({"a1"})]
     assert default == "No"  # nada restou => maioria global do treino
 
 
@@ -111,7 +134,7 @@ def test_matriz_gf_valores_manual():
         {"At": ["a", "a", "a", "b", "-"], "Out": ["-", "-", "-", "-", "-"]}
     )
     y = ["No", "No", "Yes", "Yes", "Yes"]
-    regra = (frozenset({"At=a"}), "Yes", 1 / 3, 1 / 3)
+    regra = Regra(frozenset({"At=a"}), "Yes", 1 / 3, 1 / 3)
     m = matriz_gf([regra], transacoes_X, y)
     # contingência: n11=1, n10=2, n01=2, n00=0
     linha = m.iloc[0]
@@ -312,6 +335,34 @@ def test_scores_topsis_trata_o_cps_como_beneficio_como_no_paper():
         np.asarray(matriz, float), np.ones(2) / 2, np.array([-1, 1])
     )
     assert como_custo[0] > como_custo[1]  # com types=-1 a ordem se inverteria
+
+
+# ---- Guarda de divisão por zero na renormalização dos pesos ativos ----
+def test_scores_topsis_pesos_com_soma_zero_cai_em_pesos_uniformes():
+    """Pesos ativos com soma 0 (renormalização 0/0) ⇒ pesos uniformes entre
+    os critérios ativos — nunca NaN silencioso."""
+    matriz = pd.DataFrame({"a": [1.0, 2.0, 3.0], "b": [10.0, 20.0, 30.0]})
+    scores = scores_topsis(matriz, pesos=np.array([0.0, 0.0]))
+    assert np.isfinite(scores).all()
+    assert scores == pytest.approx(scores_topsis(matriz))  # = pesos uniformes
+
+
+def test_scores_topsis_pesos_nao_finitos_cai_em_pesos_uniformes():
+    """Pesos com soma não finita (inf/NaN) também caem na guarda: o score
+    continua finito e é o do pesos uniformes."""
+    matriz = pd.DataFrame({"a": [1.0, 2.0, 3.0], "b": [10.0, 20.0, 30.0]})
+    scores = scores_topsis(matriz, pesos=np.array([np.inf, 1.0]))
+    assert np.isfinite(scores).all()
+    assert scores == pytest.approx(scores_topsis(matriz))
+
+
+def test_scores_topsis_guarda_considera_somente_os_criterios_ativos():
+    """Coluna de norma zero (inativa) com peso 0 não quebra a renormalização:
+    a guarda só considera os pesos dos critérios ATIVOS."""
+    matriz = pd.DataFrame({"a": [1.0, 2.0, 3.0], "zero": [0.0, 0.0, 0.0]})
+    scores = scores_topsis(matriz, pesos=np.array([1.0, 0.0]))
+    assert np.isfinite(scores).all()
+    assert scores == pytest.approx(scores_topsis(matriz[["a"]]))
 
 
 # ---- AC.RankAW Ponderado: integração [GF][PM-SD][TS] + poda M1 ----

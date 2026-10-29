@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from src.regra import Regra
 from src.rule_extraction import extrair_regras, suporte_minimo_calibrado
 
 
@@ -20,10 +21,20 @@ def X_disc_sinal():
 
 
 def _regra(regras, antecedente, consequente):
-    for a, c, sup, conf in regras:
-        if a == antecedente and c == consequente:
-            return (sup, conf)
+    for regra in regras:
+        if regra.antecedente == antecedente and regra.classe == consequente:
+            return (regra.suporte, regra.confianca)
     raise AssertionError(f"regra {antecedente}=>{consequente} ausente")
+
+
+def test_extracao_devolve_o_tipo_nomeado_regra(X_disc_sinal):
+    """As regras extraídas são `Regra` (campos nomeados), sem score antes do
+    ranking (`score is None`)."""
+    X, y = X_disc_sinal
+    regras = extrair_regras(X, y, sup_min=0.1)
+    assert regras
+    assert all(isinstance(regra, Regra) for regra in regras)
+    assert all(regra.score is None for regra in regras)
 
 
 def test_consuporte_e_confianca_conhecidos(X_disc_sinal):
@@ -45,11 +56,13 @@ def test_consuporte_e_confianca_conhecidos(X_disc_sinal):
 
 def test_todas_as_regras_tem_consequente_classe(X_disc_sinal):
     X, y = X_disc_sinal
-    for antecedente, consequente, *_ in extrair_regras(X, y, sup_min=0.1):
-        assert consequente in ("Yes", "No")
-        assert 1 <= len(antecedente) <= 4
+    for regra in extrair_regras(X, y, sup_min=0.1):
+        assert regra.classe in ("Yes", "No")
+        assert 1 <= len(regra.antecedente) <= 4
         # itens são sempre "coluna=valor" sem a coluna da classe
-        assert all("=" in it and not it.startswith("Churn=") for it in antecedente)
+        assert all(
+            "=" in it and not it.startswith("Churn=") for it in regra.antecedente
+        )
 
 
 def test_conf_min_zero_gera_regras_fracas(X_disc_sinal):
@@ -64,8 +77,8 @@ def test_conf_min_zero_gera_regras_fracas(X_disc_sinal):
 def test_antecedente_maximo_4(X_disc_sinal):
     X, y = X_disc_sinal
     X3 = pd.concat([X] * 1, axis=1)  # apenas 2 colunas aqui; ampliável
-    for antecedente, *rest in extrair_regras(X3, y, sup_min=0.1):
-        assert len(antecedente) <= 4
+    for regra in extrair_regras(X3, y, sup_min=0.1):
+        assert len(regra.antecedente) <= 4
 
 
 def test_determinismo(X_disc_sinal):
@@ -78,7 +91,7 @@ def test_determinismo(X_disc_sinal):
 def test_vetor_de_regras_ordenacao_instavel_ok(X_disc_sinal):
     X, y = X_disc_sinal
     regras = extrair_regras(X, y, sup_min=0.1)
-    assert all(len(r[0]) >= 1 for r in regras)
+    assert all(len(regra.antecedente) >= 1 for regra in regras)
 
 
 # ---- Calibração do sup_min ----

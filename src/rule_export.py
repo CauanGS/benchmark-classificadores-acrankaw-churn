@@ -29,7 +29,12 @@ Decisões de protocolo (o contrato do export):
    (pesos [PM-SD]); no `cba`, a confiança — critério primário da
    precedência CBA (confiança ↓, suporte ↓, cardinalidade ↑). Em todos os
    casos o score é decrescente na ordem exportada e a 1ª regra tem o maior
-   score (o SQL desempata por `id`).
+   score; **a ordem do ranking é exportada explicitamente** na coluna
+   `ordem` (posição da regra no ranking do classificador), e é ela — não o
+   score — que a query de decisão do SQL usa (`ORDER BY r.ordem ASC`).
+   Assim a decisão do SQL reproduz a predição [O] do classificador também
+   quando duas regras têm o mesmo score (no CBA o desempate da precedência
+   é suporte/cardinalidade, não o score).
 5. **L** — mesma convenção do benchmark: nº de regras pós-poda **+ 1**
    (a classe default). `delta_L_vs_cba` =
    (L_CBA − L_vencedor) / L_CBA × 100, com o CBA retreinado no mesmo
@@ -49,35 +54,31 @@ import hashlib
 import json
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
-from sklearn.model_selection import StratifiedKFold
 
-from src.associative import ACRankA, ACRankAW, CBA
-from src.eda import ALVO, carregar_dataset
-from src.evaluation import f1_macro, precision_recall_por_classe
+from src.eda import ALVO
 from src.preprocessing import MDLPDiscretizer
+from src.protocolo import (
+    MODELOS_ASSOCIATIVOS,
+    N_SPLITS,
+    RANDOM_STATE,
+    avaliar_associativos,
+    carregar_dataset_churn,
+    delta_l,
+    features_e_alvo,
+    preparar_dobras,
+)
+from src.rule_extraction import MAX_ANTECEDENTE
 
-RANDOM_STATE = 42
-N_SPLITS = 10
-ATRIBUTOS_IGNORADOS = ["customerID"]
 NOME_BASE = "Telco Customer Churn (Kaggle: blastchar/telco-customer-churn)"
-MODELOS_ASSOCIATIVOS = {"cba": CBA, "ac_ranka": ACRankA, "ac_rankaw": ACRankAW}
 # Modelo exportado na Fase 3: o AC.RankAW Ponderado (spec issue #1,
 # histórias 7-8 — as regras empacotadas são as do método proposto).
 MODELO_EXPORTADO = "ac_rankaw"
 # Seção secundária do JSON: modelos alternativos, para comparação/auditoria.
 MODELOS_ALTERNATIVOS = ("ac_ranka",)
-MENSAGEM_DATASET_AUSENTE = """\
-Dataset não encontrado em {caminho}.
-Baixe o Telco Customer Churn com:
-
-    python -c "import kagglehub; kagglehub.dataset_download('blastchar/telco-customer-churn')"
-
-e copie o CSV 'WA_Fn-UseC_-Telco-Customer-Churn.csv' para data/raw/.
-"""
 CAMPOS_REGRA = (
     "id",
+    "ordem",
     "antecedente",
     "antecedente_serializado",
     "consequente",
@@ -88,20 +89,6 @@ CAMPOS_REGRA = (
 
 
 # ---------------------------------------------------------------- dados
-
-
-def _carregar(caminho_dataset: str) -> pd.DataFrame:
-    """Dataset de churn já validado (EDA) e sem `TotalCharges` nulo."""
-    caminho = Path(caminho_dataset)
-    if not caminho.exists():
-        raise FileNotFoundError(MENSAGEM_DATASET_AUSENTE.format(caminho=caminho_dataset))
-    df = carregar_dataset(caminho_dataset).dropna(subset=["TotalCharges"]).reset_index(drop=True)
-    return df
-
-
-def _X_y(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
-    X = df.drop(columns=[ALVO] + ATRIBUTOS_IGNORADOS)
-    return X, df[ALVO]
 
 
 def _discretizar(X: pd.DataFrame, y) -> pd.DataFrame:
@@ -120,46 +107,12 @@ def avaliar_modelos_associativos(
 
     Devolve, por modelo, as médias das dobras (F1-Macro, precisão e recall
     por classe, L) e as séries por dobra (`f1_macro_folds`, `L_folds`).
+    O cálculo é o do protocolo comum (`src/protocolo.py`), compartilhado com
+    o runner do benchmark.
     """
-    X, y = _X_y(df)
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
-    por_dobra: dict[str, list[dict]] = {nome: [] for nome in MODELOS_ASSOCIATIVOS}
-
-    for idx_treino, idx_teste in skf.split(X, y):
-        X_treino, X_teste = X.iloc[idx_treino], X.iloc[idx_teste]
-        y_treino, y_teste = y.iloc[idx_treino], y.iloc[idx_teste]
-        discretizador = MDLPDiscretizer().fit(X_treino, y_treino)
-        X_treino_disc = discretizador.fit_transform(X_treino, y_treino)
-        X_teste_disc = discretizador.transform(X_teste)
-
-        for nome, classe in MODELOS_ASSOCIATIVOS.items():
-            modelo = classe().fit(X_treino_disc, y_treino)
-            y_pred = modelo.predict(X_teste_disc)
-            pr = precision_recall_por_classe(list(y_teste), list(y_pred))
-            pr_no, pr_yes = pr.get("No"), pr.get("Yes")
-            por_dobra[nome].append(
-                {
-                    "f1_macro": f1_macro(list(y_teste), list(y_pred)),
-                    "precisao_No": pr_no[0] if pr_no else 0.0,
-                    "recall_No": pr_no[1] if pr_no else 0.0,
-                    "precisao_Yes": pr_yes[0] if pr_yes else 0.0,
-                    "recall_Yes": pr_yes[1] if pr_yes else 0.0,
-                    "L": int(modelo.L),
-                }
-            )
-
-    metricas: dict[str, dict] = {}
-    for nome, dobras in por_dobra.items():
-        medias = {
-            campo: float(np.mean([d[campo] for d in dobras]))
-            for campo in ("f1_macro", "precisao_No", "recall_No", "precisao_Yes", "recall_Yes", "L")
-        }
-        metricas[nome] = {
-            **medias,
-            "f1_macro_desvio": float(np.std([d["f1_macro"] for d in dobras], ddof=1)),
-            "f1_macro_folds": [round(float(d["f1_macro"]), 6) for d in dobras],
-            "L_folds": [int(d["L"]) for d in dobras],
-        }
+    X, y = features_e_alvo(df)
+    dobras = preparar_dobras(X, y, seed=seed, n_splits=n_splits)
+    _, metricas = avaliar_associativos(dobras, MODELOS_ASSOCIATIVOS)
     return metricas
 
 
@@ -186,21 +139,27 @@ def _pares_do_antecedente(antecedente: frozenset[str]) -> list[dict[str, str]]:
 
 
 def _regras_exportaveis(modelo) -> list[dict]:
-    """Regras pós-poda na ordem do ranking, com score de ordenação."""
+    """Regras pós-poda na ordem do ranking, com score de ordenação.
+
+    `ordem` é a posição da regra no ranking do classificador (1 = primeira
+    regra da predição [O]) — é ela que o SQL usa para reproduzir a ordem de
+    decisão do classificador.
+    """
     regras = []
     for posicao, regra in enumerate(modelo.regras_, start=1):
-        antecedente, classe, suporte, confianca = regra
-        pares = _pares_do_antecedente(antecedente)
+        pares = _pares_do_antecedente(regra.antecedente)
+        score = modelo.scores_.get(regra, regra.score)
         regras.append(
             {
                 "id": posicao,
                 "posicao": posicao,
+                "ordem": posicao,
                 "antecedente": pares,
-                "antecedente_serializado": " AND ".join(sorted(antecedente)),
-                "consequente": classe,
-                "suporte": round(float(suporte), 6),
-                "confianca": round(float(confianca), 6),
-                "score": round(float(modelo.scores_.get(regra, 0.0)), 6),
+                "antecedente_serializado": " AND ".join(sorted(regra.antecedente)),
+                "consequente": regra.classe,
+                "suporte": round(float(regra.suporte), 6),
+                "confianca": round(float(regra.confianca), 6),
+                "score": round(float(score if score is not None else 0.0), 6),
             }
         )
     return regras
@@ -250,7 +209,10 @@ def montar_json(
             "protocolo": {
                 "validacao": f"StratifiedKFold(n_splits={N_SPLITS}, shuffle=True, random_state={seed})",
                 "discretizacao": "MDLP (Fayyad-Irani) ajustada por dobra de treino (anti-leakage)",
-                "extracao": "Apriori (mlxtend), conf-min=0, antecedente com até 4 itens",
+                "extracao": (
+                    f"Apriori (mlxtend), conf-min=0, antecedente com até "
+                    f"{MAX_ANTECEDENTE} itens"
+                ),
                 "poda": (
                     "M1 (cover-style) — a regra que acerta >=1 transação coberta "
                     "entra no classificador e TODAS as transações cobertas são "
@@ -338,7 +300,7 @@ def _cliente_exemplo(X_disc: pd.DataFrame, modelo) -> dict[str, str]:
     """
     valores: dict[str, str] = {}
     if modelo.regras_:
-        for par in _pares_do_antecedente(modelo.regras_[0][0]):
+        for par in _pares_do_antecedente(modelo.regras_[0].antecedente):
             valores[par["atributo"]] = par["valor"]
     for coluna in X_disc.columns:
         if coluna in valores:
@@ -366,7 +328,7 @@ def montar_sql(payload: dict, X_disc: pd.DataFrame, modelo) -> str:
         f"Modelo: {meta['modelo']} | L: {meta['L']} "
         f"({meta['n_regras']} regras + classe default)"
     )
-    linhas.append(f"-- F1-Macro médio (10 dobras): {meta['metricas']['f1_macro']}")
+    linhas.append(f"-- F1-Macro médio ({N_SPLITS} dobras): {meta['metricas']['f1_macro']}")
     linhas.append(f"-- id_exportacao: {meta['id_exportacao']}")
     linhas.append("--")
     linhas.append("-- As regras casam com valores DISCRETIZADOS (MDLP Fayyad-Irani):")
@@ -376,6 +338,7 @@ def montar_sql(payload: dict, X_disc: pd.DataFrame, modelo) -> str:
     linhas.append("DROP TABLE IF EXISTS regras;")
     linhas.append("CREATE TABLE regras (")
     linhas.append("    id INTEGER PRIMARY KEY,")
+    linhas.append("    ordem INTEGER NOT NULL,")
     linhas.append("    antecedente_serializado TEXT NOT NULL,")
     linhas.append("    classe_predita TEXT NOT NULL,")
     linhas.append("    suporte REAL NOT NULL,")
@@ -387,8 +350,9 @@ def montar_sql(payload: dict, X_disc: pd.DataFrame, modelo) -> str:
     for regra in regras:
         linhas.append(
             "INSERT INTO regras "
-            "(id, antecedente_serializado, classe_predita, suporte, confianca, score) "
+            "(id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) "
             f"VALUES ({regra['id']}, "
+            f"{regra['ordem']}, "
             f"{_sql_texto(regra['antecedente_serializado'])}, "
             f"{_sql_texto(regra['consequente'])}, "
             f"{_sql_real(regra['suporte'])}, "
@@ -434,8 +398,11 @@ def montar_sql(payload: dict, X_disc: pd.DataFrame, modelo) -> str:
     linhas.append("FROM cliente_exemplo c;")
     linhas.append("")
     linhas.append("-- Mesma decisão em forma relacional: filtra as regras que casam e")
-    linhas.append("-- ordena por score (decrescente) — o score é o critério de ordenação")
-    linhas.append("-- do modelo exportado; a primeira (maior score) vence.")
+    linhas.append("-- ordena pela POSIÇÃO NO RANKING do classificador (coluna `ordem`,")
+    linhas.append("-- ascendente) — a 1ª regra que casa vence, exatamente como na")
+    linhas.append("-- predição [O]. O `score` fica na tabela para auditoria, mas não")
+    linhas.append("-- define a ordem (no CBA o desempate da precedência é suporte e")
+    linhas.append("-- cardinalidade, não o score).")
     linhas.append("DROP VIEW IF EXISTS decisao_cliente_por_score;")
     linhas.append("CREATE VIEW decisao_cliente_por_score AS")
     linhas.append("SELECT")
@@ -451,7 +418,7 @@ def montar_sql(payload: dict, X_disc: pd.DataFrame, modelo) -> str:
         ))
     else:
         linhas.append("            WHERE 0")
-    linhas.append("            ORDER BY r.score DESC, r.id ASC")
+    linhas.append("            ORDER BY r.ordem ASC")
     linhas.append("            LIMIT 1")
     linhas.append("        ),")
     linhas.append(f"        {_sql_texto(class_default)}")
@@ -483,16 +450,16 @@ def exportar_regras(
 
     Devolve o payload JSON exportado.
     """
-    df = _carregar(caminho_dataset)
+    df = carregar_dataset_churn(caminho_dataset)
     metricas_cv = avaliar_modelos_associativos(df, seed=seed)
     nome_modelo = selecionar_modelo()
 
-    X, y = _X_y(df)
+    X, y = features_e_alvo(df)
     X_disc = _discretizar(X, y)
     modelo = MODELOS_ASSOCIATIVOS[nome_modelo]().fit(X_disc, y)
 
     modelo_cba = MODELOS_ASSOCIATIVOS["cba"]().fit(X_disc, y)
-    delta_l = (int(modelo_cba.L) - int(modelo.L)) / int(modelo_cba.L) * 100.0
+    delta_l_vs_cba = delta_l(int(modelo_cba.L), int(modelo.L))
 
     alternativos = {
         nome: {"modelo": MODELOS_ASSOCIATIVOS[nome]().fit(X_disc, y)}
@@ -505,7 +472,7 @@ def exportar_regras(
         nome_modelo=nome_modelo,
         caminho_dataset=caminho_dataset,
         seed=seed,
-        delta_l=delta_l,
+        delta_l=delta_l_vs_cba,
         alternativos=alternativos,
     )
     sql = montar_sql(payload, X_disc, modelo)

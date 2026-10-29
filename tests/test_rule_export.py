@@ -12,7 +12,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.rule_export import exportar_regras, selecionar_modelo
+from src.associative import CBA
+from src.rule_export import exportar_regras, montar_json, montar_sql, selecionar_modelo
 
 
 @pytest.fixture
@@ -227,3 +228,116 @@ def test_cli_fase3_gera_json_e_sql(dataset_sintetico, tmp_path):
     assert (saida / "rules_exported.json").exists()
     assert (saida / "rules_exported.sql").exists()
     assert "Fase 3" in proc.stdout
+
+
+# ---- A ordem exportada (`ordem`) é a ordem de predição [O] do classificador ----
+
+# Fixture mínima em que DUAS regras de classes diferentes casam com o mesmo
+# cliente: {A=a1}⇒Yes (confiança 1.0, entra 1ª no ranking CBA) e
+# {B=b2}⇒No (confiança 1/3, entra 2ª). As duas sobrevivem à poda M1 e a
+# predição [O] do classificador é "Yes" — a 1ª regra do ranking vence.
+X_DUAS_REGRAS = pd.DataFrame(
+    {
+        "A": ["a1", "a1", "a2", "a2", "a2"],
+        "B": ["b1", "b2", "b2", "b2", "b3"],
+    }
+)
+Y_DUAS_REGRAS = ["Yes", "Yes", "No", "Yes", "No"]
+
+
+def _metricas_ficticias(modelo) -> dict[str, dict]:
+    """Bloco de métricas por modelo no formato do protocolo (só para o export)."""
+    return {
+        "cba": {
+            "f1_macro": 0.5,
+            "f1_macro_desvio": 0.1,
+            "precisao_No": 0.5,
+            "recall_No": 0.5,
+            "precisao_Yes": 0.5,
+            "recall_Yes": 0.5,
+            "L": float(modelo.L),
+        }
+    }
+
+
+def test_export_tem_a_coluna_ordem_com_a_posicao_do_ranking(dataset_sintetico, tmp_path):
+    """(5) O JSON e o SQL carregam `ordem` = posição da regra no ranking."""
+    json_path = tmp_path / "rules_exported.json"
+    sql_path = tmp_path / "rules_exported.sql"
+    exportar_regras(
+        caminho_dataset=str(dataset_sintetico),
+        caminho_json=str(json_path),
+        caminho_sql=str(sql_path),
+    )
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    assert [r["ordem"] for r in payload["regras"]] == list(
+        range(1, len(payload["regras"]) + 1)
+    )
+    assert [r["ordem"] for r in payload["regras"]] == [r["posicao"] for r in payload["regras"]]
+
+    sql = sql_path.read_text(encoding="utf-8")
+    assert "ordem INTEGER NOT NULL" in sql
+    assert "ORDER BY r.ordem ASC" in sql
+
+
+def test_ordem_do_sql_reproduz_a_ordem_de_predicao_do_classificador():
+    """(5) A query de decisão do SQL elege a MESMA regra do classificador.
+
+    A ordem do SQL é a coluna `ordem` (posição no ranking do classificador) —
+    a 1ª regra que casa vence, como na predição ordinal [O]. O cliente da
+    fixture casa com duas regras de classes diferentes: a do ranking (1ª)
+    vence, e o SQL precisa devolver a mesma classe.
+    """
+    modelo = CBA(sup_min=0.2).fit(X_DUAS_REGRAS, Y_DUAS_REGRAS)
+    assert len(modelo.regras_) >= 2, "a fixture precisa ter 2+ regras no ranking"
+    assert modelo.regras_[0].classe != modelo.regras_[1].classe
+
+    payload = montar_json(
+        modelo=modelo,
+        metricas_cv=_metricas_ficticias(modelo),
+        nome_modelo="cba",
+        caminho_dataset="mini.csv",
+        seed=42,
+        delta_l=0.0,
+    )
+    sql = montar_sql(payload, X_DUAS_REGRAS, modelo)
+
+    # o cliente casa com as DUAS regras do ranking
+    cliente = {"A": "a1", "B": "b2"}
+    esperado = modelo.predict(pd.DataFrame([cliente]))[0]
+    assert esperado == modelo.regras_[0].classe  # a 1ª regra do ranking vence
+
+    conn = sqlite3.connect(":memory:")
+    try:
+        conn.executescript(sql)
+        conn.execute(
+            'INSERT INTO cliente_exemplo (cliente_id, "A", "B") VALUES (?, ?, ?)',
+            ("C-DUAS-REGRAS", cliente["A"], cliente["B"]),
+        )
+        por_id = dict(
+            conn.execute(
+                "SELECT cliente_id, classe_predita FROM decisao_cliente_por_score"
+            ).fetchall()
+        )
+        por_case = dict(
+            conn.execute(
+                "SELECT cliente_id, classe_predita FROM decisao_cliente"
+            ).fetchall()
+        )
+    finally:
+        conn.close()
+
+    assert por_id["C-DUAS-REGRAS"] == esperado
+    assert por_case["C-DUAS-REGRAS"] == esperado
+
+    # a ordem exportada é a ordem do classificador: a 1ª regra casada é a
+    # que o SQL elege (a de menor `ordem` entre as que casam).
+    casam = [
+        r
+        for r in payload["regras"]
+        if set(r["antecedente_serializado"].split(" AND "))
+        <= {f"{k}={v}" for k, v in cliente.items()}
+    ]
+    assert casam, "o cliente da fixture deve casar com alguma regra"
+    assert min(r["ordem"] for r in casam) == 1
+    assert payload["regras"][0]["consequente"] == esperado
