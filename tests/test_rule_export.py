@@ -53,14 +53,19 @@ def test_export_json_tem_schema_documentado(dataset_sintetico, tmp_path):
     )
 
     payload = json.loads(json_path.read_text(encoding="utf-8"))
-    assert set(payload) == {"metadados", "regras", "class_default"}
+    assert set(payload) == {
+        "metadados",
+        "regras",
+        "class_default",
+        "modelos_alternativos",
+    }
 
     meta = payload["metadados"]
     for campo in ("base", "alvo", "seed", "modelo", "L", "metricas"):
         assert campo in meta, f"metadados sem o campo '{campo}'"
     assert meta["alvo"] == "Churn"
     assert meta["seed"] == 42
-    assert meta["modelo"] in {"cba", "ac_ranka", "ac_rankaw"}
+    assert meta["modelo"] == "ac_rankaw"
     assert isinstance(meta["L"], int)
     assert meta["L"] >= 1
     assert "f1_macro" in meta["metricas"]
@@ -99,20 +104,31 @@ def test_export_json_tem_schema_documentado(dataset_sintetico, tmp_path):
     assert payload["class_default"]["classe"] in {"Yes", "No"}
 
 
-def test_selecao_de_modelo_segue_a_decisao_documentada():
-    """Maior F1-Macro médio; empate ⇒ menor L; empate ⇒ alfabético."""
-    metricas = {
-        "cba": {"f1_macro": 0.80, "L": 10.0},
-        "ac_ranka": {"f1_macro": 0.82, "L": 12.0},
-        "ac_rankaw": {"f1_macro": 0.82, "L": 8.0},
-    }
-    assert selecionar_modelo(metricas) == "ac_rankaw"
+def test_export_inclui_o_ac_ranka_como_modelo_alternativo(dataset_sintetico, tmp_path):
+    """Seção secundária `modelos_alternativos`: regras do AC.RankA (baseline
+    multicritério de pesos uniformes) para comparação."""
+    json_path = tmp_path / "rules_exported.json"
+    sql_path = tmp_path / "rules_exported.sql"
+    exportar_regras(
+        caminho_dataset=str(dataset_sintetico),
+        caminho_json=str(json_path),
+        caminho_sql=str(sql_path),
+    )
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    alternativos = payload["modelos_alternativos"]
+    assert "ac_ranka" in alternativos
+    bloco = alternativos["ac_ranka"]
+    assert bloco["regras"], "o AC.RankA alternativo deve ter regras"
+    assert bloco["class_default"]["classe"] in {"Yes", "No"}
+    assert bloco["L"] == len(bloco["regras"]) + 1
+    scores = [regra["score"] for regra in bloco["regras"]]
+    assert scores == sorted(scores, reverse=True)
 
-    empate_f1 = {
-        "cba": {"f1_macro": 0.81, "L": 5.0},
-        "ac_ranka": {"f1_macro": 0.81, "L": 5.0},
-    }
-    assert selecionar_modelo(empate_f1) == "ac_ranka"
+
+def test_alvo_do_export_e_o_ac_rankaw_ponderado():
+    """A Fase 3 exporta o AC.RankAW Ponderado (spec issue #1, histórias 7-8):
+    a escolha é de protocolo, não de desempenho."""
+    assert selecionar_modelo() == "ac_rankaw"
 
 
 def test_export_sql_executa_no_sqlite_e_resolve_a_primeira_regra(

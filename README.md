@@ -109,14 +109,14 @@ O trade-off do método é, portanto, o esperado: a ordenação ponderada troca u
 
 ## 7. Fase 3 — export das regras de negócio
 
-`python -m src.run_benchmark --phase 3` avalia os três classificadores associativos no mesmo protocolo do benchmark, **seleciona o de maior F1-Macro médio** (empate ⇒ menor `L`; empate ⇒ nome alfabético — decisão documentada em `src/rule_export.py`), retreina o vencedor no dataset completo e grava:
+`python -m src.run_benchmark --phase 3` avalia os três classificadores associativos no mesmo protocolo do benchmark (métricas registradas em `metadados.metricas.modelos_avaliados`), retreina o **AC.RankAW Ponderado** no dataset completo e grava:
 
 | Artefato | Conteúdo |
 | :--- | :--- |
-| `outputs/rules_exported.json` | metadados (base, alvo, seed, modelo, `L`, métricas, protocolo) + lista de regras (antecedente como pares atributo-valor, consequente, suporte, confiança, score de ordenação) + bloco `class_default` |
+| `outputs/rules_exported.json` | metadados (base, alvo, seed, modelo, `L`, métricas, protocolo) + lista de regras do AC.RankAW (antecedente como pares atributo-valor, consequente, suporte, confiança, score de ordenação) + bloco `class_default` + seção secundária `modelos_alternativos` (regras do AC.RankA, para comparação) |
 | `outputs/rules_exported.sql` | script **executável em SQLite**: tabela `regras` (`id`, `antecedente_serializado`, `classe_predita`, `suporte`, `confianca`, `score`), `INSERT`s das regras, tabela de cliente de exemplo e as queries de decisão |
 
-No run de referência o export saiu com o modelo **AC.RankA** (`L = 235`: 234 regras + classe default; F1-Macro médio 0,719595; `id_exportacao` determinístico `4714c6fb513a5f60`), porque é o de maior F1-Macro médio entre `cba` (0,4262), `ac_ranka` (0,7196) e `ac_rankaw` (0,7104).
+**O modelo exportado é o AC.RankAW Ponderado** (`[GF][PM-SD][TS]`) — a escolha é de **protocolo** (spec issue #1, histórias 7-8: o empacotamento de regras de negócio entrega o método proposto), e não de desempenho: as métricas de `cba`, `ac_ranka` e `ac_rankaw` ficam registradas no JSON para transparência. O AC.RankA aparece apenas como modelo alternativo, na seção informativa `modelos_alternativos` (o SQL exporta só o AC.RankAW).
 
 O SQL traz duas formas equivalentes da mesma decisão de negócio (predição `[O]`):
 

@@ -1,39 +1,44 @@
 """Exportação das regras de negócio (JSON + SQL) — Fase 3 do benchmark.
 
-O export transforma o classificador associativo vencedor em dois artefatos
+O export transforma o classificador associativo-alvo em dois artefatos
 executáveis: `outputs/rules_exported.json` (regras legíveis por sistema) e
 `outputs/rules_exported.sql` (script SQLite com as regras e uma query de
 decisão que classifica um cliente).
 
 Decisões de protocolo (o contrato do export):
 
-1. **Qual modelo é exportado** — os três classificadores associativos do
-   portfólio (`cba`, `ac_ranka`, `ac_rankaw`) são avaliados com o MESMO
-   protocolo do benchmark (`StratifiedKFold` de 10 dobras, `shuffle=True`,
+1. **Qual modelo é exportado** — o **AC.RankAW Ponderado** (`[GF][PM-SD][TS]`),
+   o método proposto e o modelo do portfólio. A escolha é de **protocolo**
+   (spec issue #1, histórias 7-8: as regras empacotadas são as do método
+   proposto), não de desempenho: os três classificadores associativos
+   (`cba`, `ac_ranka`, `ac_rankaw`) são avaliados no MESMO protocolo do
+   benchmark (`StratifiedKFold` de 10 dobras, `shuffle=True`,
    `random_state=42`, discretização MDLP ajustada só na dobra de treino —
-   anti-leakage) e **vence o de maior F1-Macro médio** nas dobras. Empate
-   de F1-Macro é resolvido pelo menor L médio (modelo mais compacto) e,
-   persistindo o empate, pelo nome do modelo em ordem alfabética
-   (determinismo). A escolha é registrada em `metadados.metricas`.
-2. **Quais regras são exportadas** — o modelo vencedor é retreinado no
-   dataset **completo** (MDLP ajustado no conjunto inteiro) e exporta-se o
-   conjunto pós-poda [M1] na **ordem do ranking**: é essa ordem que a
-   predição [O] percorre (a PRIMEIRA regra que casa vence).
-3. **Score de ordenação** — o número que justifica a ordem do ranking:
+   anti-leakage) e as métricas de todos ficam registradas em
+   `metadados.metricas.modelos_avaliados` para transparência.
+2. **Quais regras são exportadas** — o AC.RankAW é retreinado no dataset
+   **completo** (MDLP ajustado no conjunto inteiro) e exporta-se o conjunto
+   pós-poda [M1] na **ordem do ranking**: é essa ordem que a predição [O]
+   percorre (a PRIMEIRA regra que casa vence).
+3. **Modelos alternativos** — a seção secundária `modelos_alternativos` do
+   JSON traz as regras do **AC.RankA** (mesmo motor, pesos uniformes no
+   TOPSIS) para comparação/auditoria. Ela é **informativa**: o SQL exporta
+   apenas o modelo principal (AC.RankAW).
+4. **Score de ordenação** — o número que justifica a ordem do ranking:
    score TOPSIS no `ac_ranka` (pesos uniformes) e no `ac_rankaw`
    (pesos [PM-SD]); no `cba`, a confiança — critério primário da
    precedência CBA (confiança ↓, suporte ↓, cardinalidade ↑). Em todos os
    casos o score é decrescente na ordem exportada e a 1ª regra tem o maior
    score (o SQL desempata por `id`).
-4. **L** — mesma convenção do benchmark: nº de regras pós-poda **+ 1**
+5. **L** — mesma convenção do benchmark: nº de regras pós-poda **+ 1**
    (a classe default). `delta_L_vs_cba` =
    (L_CBA − L_vencedor) / L_CBA × 100, com o CBA retreinado no mesmo
    dataset completo.
-5. **Determinismo** — seed 42 em toda a cadeia e **nenhum timestamp** nos
+6. **Determinismo** — seed 42 em toda a cadeia e **nenhum timestamp** nos
    artefatos: a mesma entrada produz JSON e SQL byte-idênticos. O
    `metadados.id_exportacao` é um identificador determinístico do conteúdo
    (SHA-256 do payload canônico das regras).
-6. **Valores discretizados** — as regras casam com os valores gerados pela
+7. **Valores discretizados** — as regras casam com os valores gerados pela
    discretização MDLP (ex.: `tenure=tenure_(-∞, 12]`); o cliente consultado
    no SQL precisa passar pelo mesmo pré-processamento.
 """
@@ -58,6 +63,11 @@ N_SPLITS = 10
 ATRIBUTOS_IGNORADOS = ["customerID"]
 NOME_BASE = "Telco Customer Churn (Kaggle: blastchar/telco-customer-churn)"
 MODELOS_ASSOCIATIVOS = {"cba": CBA, "ac_ranka": ACRankA, "ac_rankaw": ACRankAW}
+# Modelo exportado na Fase 3: o AC.RankAW Ponderado (spec issue #1,
+# histórias 7-8 — as regras empacotadas são as do método proposto).
+MODELO_EXPORTADO = "ac_rankaw"
+# Seção secundária do JSON: modelos alternativos, para comparação/auditoria.
+MODELOS_ALTERNATIVOS = ("ac_ranka",)
 MENSAGEM_DATASET_AUSENTE = """\
 Dataset não encontrado em {caminho}.
 Baixe o Telco Customer Churn com:
@@ -153,16 +163,15 @@ def avaliar_modelos_associativos(
     return metricas
 
 
-def selecionar_modelo(metricas: dict[str, dict]) -> str:
-    """Modelo exportado: maior F1-Macro médio; empate ⇒ menor L; ⇒ alfabético."""
-    return min(
-        metricas,
-        key=lambda nome: (
-            -round(float(metricas[nome]["f1_macro"]), 12),
-            round(float(metricas[nome]["L"]), 12),
-            nome,
-        ),
-    )
+def selecionar_modelo() -> str:
+    """Modelo exportado na Fase 3: **AC.RankAW Ponderado** (`[GF][PM-SD][TS]`).
+
+    A escolha é de **protocolo**, não de desempenho (spec issue #1, histórias
+    7-8): o empacotamento de regras de negócio entrega o método proposto.
+    As métricas dos três classificadores associativos continuam sendo
+    avaliadas e registradas em `metadados.metricas.modelos_avaliados`.
+    """
+    return MODELO_EXPORTADO
 
 
 # ------------------------------------------------------------- export JSON
@@ -214,8 +223,13 @@ def montar_json(
     caminho_dataset: str,
     seed: int,
     delta_l: float,
+    alternativos: dict[str, dict] | None = None,
 ) -> dict:
-    """Monta o payload do `rules_exported.json`."""
+    """Monta o payload do `rules_exported.json`.
+
+    `alternativos`: seção secundária `modelos_alternativos` (modelo → bloco
+    com `L`, `class_default` e `regras`); informativa, não entra no SQL.
+    """
     regras = _regras_exportaveis(modelo)
     class_default = {
         "classe": modelo.classe_default_,
@@ -237,11 +251,17 @@ def montar_json(
                 "validacao": f"StratifiedKFold(n_splits={N_SPLITS}, shuffle=True, random_state={seed})",
                 "discretizacao": "MDLP (Fayyad-Irani) ajustada por dobra de treino (anti-leakage)",
                 "extracao": "Apriori (mlxtend), conf-min=0, antecedente com até 4 itens",
-                "poda": "M1 (cover-style) — transações acertadas são deletadas",
+                "poda": (
+                    "M1 (cover-style) — a regra que acerta >=1 transação coberta "
+                    "entra no classificador e TODAS as transações cobertas são "
+                    "deletadas; classe default = maioria do restante (recalculada "
+                    "a cada iteração)"
+                ),
                 "predicao": "[O] — primeira regra do ranking que casa; fallback classe default",
                 "selecao_do_modelo": (
-                    "maior F1-Macro médio nas dobras; empate ⇒ menor L médio; "
-                    "empate ⇒ nome do modelo em ordem alfabética"
+                    "AC.RankAW Ponderado — alvo de protocolo do export (spec issue #1, "
+                    "histórias 7-8); as métricas dos demais modelos associativos "
+                    "ficam em metricas.modelos_avaliados"
                 ),
                 "score_de_ordenacao": (
                     "TOPSIS (pesos [PM-SD]) no ac_rankaw, TOPSIS (pesos uniformes) "
@@ -270,6 +290,21 @@ def montar_json(
         },
         "regras": regras,
         "class_default": class_default,
+        "modelos_alternativos": {
+            "descricao": (
+                "Modelos alternativos, retreinados no mesmo dataset completo e na "
+                "mesma ordem de ranking. Seção informativa: o SQL exporta apenas "
+                "o modelo principal (AC.RankAW Ponderado)."
+            ),
+            **{
+                nome: {
+                    "L": int(bloco["modelo"].L),
+                    "class_default": {"classe": bloco["modelo"].classe_default_},
+                    "regras": _regras_exportaveis(bloco["modelo"]),
+                }
+                for nome, bloco in (alternativos or {}).items()
+            },
+        },
     }
     payload["metadados"]["id_exportacao"] = _id_exportacao(payload)
     return payload
@@ -438,14 +473,19 @@ def exportar_regras(
     caminho_sql: str,
     seed: int = RANDOM_STATE,
 ) -> dict:
-    """Fase 3: avalia, seleciona e exporta as regras (JSON + SQL).
+    """Fase 3: exporta as regras do AC.RankAW Ponderado (JSON + SQL).
 
-    Devolve o payload JSON exportado. Escreve `caminho_json` e
-    `caminho_sql` (diretórios criados se necessário).
+    Avalia os três classificadores associativos no protocolo do benchmark
+    (métricas em `metadados.metricas.modelos_avaliados`), retreina o
+    **AC.RankAW Ponderado** (alvo de protocolo) e o **AC.RankA** (seção
+    secundária `modelos_alternativos`) no dataset completo, e escreve
+    `caminho_json` e `caminho_sql` (diretórios criados se necessário).
+
+    Devolve o payload JSON exportado.
     """
     df = _carregar(caminho_dataset)
     metricas_cv = avaliar_modelos_associativos(df, seed=seed)
-    nome_modelo = selecionar_modelo(metricas_cv)
+    nome_modelo = selecionar_modelo()
 
     X, y = _X_y(df)
     X_disc = _discretizar(X, y)
@@ -454,6 +494,11 @@ def exportar_regras(
     modelo_cba = MODELOS_ASSOCIATIVOS["cba"]().fit(X_disc, y)
     delta_l = (int(modelo_cba.L) - int(modelo.L)) / int(modelo_cba.L) * 100.0
 
+    alternativos = {
+        nome: {"modelo": MODELOS_ASSOCIATIVOS[nome]().fit(X_disc, y)}
+        for nome in MODELOS_ALTERNATIVOS
+    }
+
     payload = montar_json(
         modelo=modelo,
         metricas_cv=metricas_cv,
@@ -461,6 +506,7 @@ def exportar_regras(
         caminho_dataset=caminho_dataset,
         seed=seed,
         delta_l=delta_l,
+        alternativos=alternativos,
     )
     sql = montar_sql(payload, X_disc, modelo)
 
