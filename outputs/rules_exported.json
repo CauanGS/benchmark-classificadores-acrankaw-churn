@@ -1,0 +1,3450 @@
+{
+  "metadados": {
+    "base": "Telco Customer Churn (Kaggle: blastchar/telco-customer-churn)",
+    "arquivo_dataset": "WA_Fn-UseC_-Telco-Customer-Churn.csv",
+    "alvo": "Churn",
+    "seed": 42,
+    "modelo": "ac_rankaw",
+    "L": 73,
+    "n_regras": 72,
+    "protocolo": {
+      "validacao": "StratifiedKFold(n_splits=10, shuffle=True, random_state=42)",
+      "discretizacao": "MDLP (Fayyad-Irani) ajustada por dobra de treino (anti-leakage)",
+      "extracao": "Apriori (mlxtend), conf-min=0, antecedente com até 4 itens",
+      "poda": "M1 (cover-style) — a regra que acerta >=1 transação coberta entra no classificador e TODAS as transações cobertas são deletadas; classe default = maioria do restante (recalculada a cada iteração)",
+      "predicao": "[O] — primeira regra do ranking que casa; fallback classe default",
+      "selecao_do_modelo": "AC.RankAW Ponderado — alvo de protocolo do export (spec issue #1, histórias 7-8); as métricas dos demais modelos associativos ficam em metricas.modelos_avaliados",
+      "score_de_ordenacao": "TOPSIS (pesos [PM-SD]) no ac_rankaw, TOPSIS (pesos uniformes) no ac_ranka, confiança no cba"
+    },
+    "metricas": {
+      "f1_macro": 0.710354,
+      "f1_macro_desvio": 0.012341,
+      "precisao_No": 0.834637,
+      "recall_No": 0.884367,
+      "precisao_Yes": 0.618604,
+      "recall_Yes": 0.515773,
+      "L": 73,
+      "L_medio_dobras": 75.1,
+      "delta_L_vs_cba": 59.444444,
+      "modelos_avaliados": {
+        "cba": {
+          "f1_macro": 0.426192,
+          "f1_macro_desvio": 0.004749,
+          "L_medio_dobras": 179.2
+        },
+        "ac_ranka": {
+          "f1_macro": 0.719,
+          "f1_macro_desvio": 0.012747,
+          "L_medio_dobras": 74.0
+        },
+        "ac_rankaw": {
+          "f1_macro": 0.710354,
+          "f1_macro_desvio": 0.012341,
+          "L_medio_dobras": 75.1
+        }
+      }
+    },
+    "id_exportacao": "4c88b5081a57d9e6"
+  },
+  "regras": [
+    {
+      "id": 1,
+      "posicao": 1,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(347.9, 3273.68]"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND TotalCharges=TotalCharges_(347.9, 3273.68]",
+      "consequente": "No",
+      "suporte": 0.101251,
+      "confianca": 0.987517,
+      "score": 0.991672
+    },
+    {
+      "id": 2,
+      "posicao": 2,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND PaperlessBilling=No AND PhoneService=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.107509,
+      "confianca": 0.985658,
+      "score": 0.868929
+    },
+    {
+      "id": 3,
+      "posicao": 3,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND PaperlessBilling=No AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.119312,
+      "confianca": 0.984742,
+      "score": 0.817475
+    },
+    {
+      "id": 4,
+      "posicao": 4,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND PaperlessBilling=No AND PhoneService=Yes",
+      "consequente": "No",
+      "suporte": 0.113908,
+      "confianca": 0.984029,
+      "score": 0.779587
+    },
+    {
+      "id": 5,
+      "posicao": 5,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND PaperlessBilling=No",
+      "consequente": "No",
+      "suporte": 0.126138,
+      "confianca": 0.98337,
+      "score": 0.749681
+    },
+    {
+      "id": 6,
+      "posicao": 6,
+      "antecedente": [
+        {
+          "atributo": "DeviceProtection",
+          "valor": "No internet service"
+        },
+        {
+          "atributo": "InternetService",
+          "valor": "No"
+        },
+        {
+          "atributo": "MonthlyCharges",
+          "valor": "MonthlyCharges_(-∞, 29.375]"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(347.9, 3273.68]"
+        }
+      ],
+      "antecedente_serializado": "DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND TotalCharges=TotalCharges_(347.9, 3273.68]",
+      "consequente": "No",
+      "suporte": 0.128413,
+      "confianca": 0.98259,
+      "score": 0.715665
+    },
+    {
+      "id": 7,
+      "posicao": 7,
+      "antecedente": [
+        {
+          "atributo": "MonthlyCharges",
+          "valor": "MonthlyCharges_(-∞, 29.375]"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(347.9, 3273.68]"
+        }
+      ],
+      "antecedente_serializado": "MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND TotalCharges=TotalCharges_(347.9, 3273.68]",
+      "consequente": "No",
+      "suporte": 0.131684,
+      "confianca": 0.979894,
+      "score": 0.617975
+    },
+    {
+      "id": 8,
+      "posicao": 8,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "Dependents",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND Dependents=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.106371,
+      "confianca": 0.979058,
+      "score": 0.589927
+    },
+    {
+      "id": 9,
+      "posicao": 9,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "Dependents",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND Dependents=Yes",
+      "consequente": "No",
+      "suporte": 0.108362,
+      "confianca": 0.976923,
+      "score": 0.534103
+    },
+    {
+      "id": 10,
+      "posicao": 10,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.136945,
+      "confianca": 0.976673,
+      "score": 0.531014
+    },
+    {
+      "id": 11,
+      "posicao": 11,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND Partner=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.150028,
+      "confianca": 0.975948,
+      "score": 0.515857
+    },
+    {
+      "id": 12,
+      "posicao": 12,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        },
+        {
+          "atributo": "gender",
+          "valor": "Female"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND SeniorCitizen=0 AND gender=Female",
+      "consequente": "No",
+      "suporte": 0.107082,
+      "confianca": 0.975389,
+      "score": 0.499728
+    },
+    {
+      "id": 13,
+      "posicao": 13,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND Partner=Yes AND PhoneService=Yes",
+      "consequente": "No",
+      "suporte": 0.14946,
+      "confianca": 0.97405,
+      "score": 0.476941
+    },
+    {
+      "id": 14,
+      "posicao": 14,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND Partner=Yes",
+      "consequente": "No",
+      "suporte": 0.163965,
+      "confianca": 0.973818,
+      "score": 0.473984
+    },
+    {
+      "id": 15,
+      "posicao": 15,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "gender",
+          "valor": "Female"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND gender=Female",
+      "consequente": "No",
+      "suporte": 0.116325,
+      "confianca": 0.97381,
+      "score": 0.46945
+    },
+    {
+      "id": 16,
+      "posicao": 16,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.213026,
+      "confianca": 0.972727,
+      "score": 0.459606
+    },
+    {
+      "id": 17,
+      "posicao": 17,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Two year"
+        }
+      ],
+      "antecedente_serializado": "Contract=Two year",
+      "consequente": "No",
+      "suporte": 0.232793,
+      "confianca": 0.971513,
+      "score": 0.441687
+    },
+    {
+      "id": 18,
+      "posicao": 18,
+      "antecedente": [
+        {
+          "atributo": "DeviceProtection",
+          "valor": "No internet service"
+        },
+        {
+          "atributo": "InternetService",
+          "valor": "No"
+        },
+        {
+          "atributo": "MonthlyCharges",
+          "valor": "MonthlyCharges_(-∞, 29.375]"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND Partner=Yes",
+      "consequente": "No",
+      "suporte": 0.100114,
+      "confianca": 0.960437,
+      "score": 0.305063
+    },
+    {
+      "id": 19,
+      "posicao": 19,
+      "antecedente": [
+        {
+          "atributo": "MonthlyCharges",
+          "valor": "MonthlyCharges_(-∞, 29.375]"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND Partner=Yes",
+      "consequente": "No",
+      "suporte": 0.102531,
+      "confianca": 0.949934,
+      "score": 0.238465
+    },
+    {
+      "id": 20,
+      "posicao": 20,
+      "antecedente": [
+        {
+          "atributo": "DeviceProtection",
+          "valor": "No internet service"
+        },
+        {
+          "atributo": "InternetService",
+          "valor": "No"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "DeviceProtection=No internet service AND InternetService=No AND PaperlessBilling=No AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.138367,
+      "confianca": 0.934678,
+      "score": 0.181146
+    },
+    {
+      "id": 21,
+      "posicao": 21,
+      "antecedente": [
+        {
+          "atributo": "DeviceProtection",
+          "valor": "No internet service"
+        },
+        {
+          "atributo": "InternetService",
+          "valor": "No"
+        },
+        {
+          "atributo": "MonthlyCharges",
+          "valor": "MonthlyCharges_(-∞, 29.375]"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        }
+      ],
+      "antecedente_serializado": "DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND PaperlessBilling=No",
+      "consequente": "No",
+      "suporte": 0.142776,
+      "confianca": 0.933953,
+      "score": 0.179176
+    },
+    {
+      "id": 22,
+      "posicao": 22,
+      "antecedente": [
+        {
+          "atributo": "MonthlyCharges",
+          "valor": "MonthlyCharges_(-∞, 29.375]"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND PaperlessBilling=No AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.142634,
+      "confianca": 0.927845,
+      "score": 0.163107
+    },
+    {
+      "id": 23,
+      "posicao": 23,
+      "antecedente": [
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(3273.68, +∞]"
+        }
+      ],
+      "antecedente_serializado": "OnlineSecurity=Yes AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(3273.68, +∞]",
+      "consequente": "No",
+      "suporte": 0.121729,
+      "confianca": 0.927411,
+      "score": 0.16152
+    },
+    {
+      "id": 24,
+      "posicao": 24,
+      "antecedente": [
+        {
+          "atributo": "DeviceProtection",
+          "valor": "No internet service"
+        },
+        {
+          "atributo": "InternetService",
+          "valor": "No"
+        },
+        {
+          "atributo": "MonthlyCharges",
+          "valor": "MonthlyCharges_(-∞, 29.375]"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.193402,
+      "confianca": 0.926431,
+      "score": 0.161318
+    },
+    {
+      "id": 25,
+      "posicao": 25,
+      "antecedente": [
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TechSupport",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(3273.68, +∞]"
+        }
+      ],
+      "antecedente_serializado": "Partner=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+      "consequente": "No",
+      "suporte": 0.105375,
+      "confianca": 0.927409,
+      "score": 0.161117
+    },
+    {
+      "id": 26,
+      "posicao": 26,
+      "antecedente": [
+        {
+          "atributo": "OnlineBackup",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(3273.68, +∞]"
+        }
+      ],
+      "antecedente_serializado": "OnlineBackup=Yes AND OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+      "consequente": "No",
+      "suporte": 0.1031,
+      "confianca": 0.925926,
+      "score": 0.157643
+    },
+    {
+      "id": 27,
+      "posicao": 27,
+      "antecedente": [
+        {
+          "atributo": "DeviceProtection",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(3273.68, +∞]"
+        }
+      ],
+      "antecedente_serializado": "DeviceProtection=Yes AND OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+      "consequente": "No",
+      "suporte": 0.104807,
+      "confianca": 0.925879,
+      "score": 0.157577
+    },
+    {
+      "id": 28,
+      "posicao": 28,
+      "antecedente": [
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(3273.68, +∞]"
+        }
+      ],
+      "antecedente_serializado": "OnlineSecurity=Yes AND Partner=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+      "consequente": "No",
+      "suporte": 0.104807,
+      "confianca": 0.924718,
+      "score": 0.154997
+    },
+    {
+      "id": 29,
+      "posicao": 29,
+      "antecedente": [
+        {
+          "atributo": "OnlineBackup",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TechSupport",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(3273.68, +∞]"
+        }
+      ],
+      "antecedente_serializado": "OnlineBackup=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+      "consequente": "No",
+      "suporte": 0.106229,
+      "confianca": 0.923362,
+      "score": 0.152119
+    },
+    {
+      "id": 30,
+      "posicao": 30,
+      "antecedente": [
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        },
+        {
+          "atributo": "TechSupport",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(3273.68, +∞]"
+        }
+      ],
+      "antecedente_serializado": "SeniorCitizen=0 AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+      "consequente": "No",
+      "suporte": 0.125142,
+      "confianca": 0.91954,
+      "score": 0.144858
+    },
+    {
+      "id": 31,
+      "posicao": 31,
+      "antecedente": [
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        },
+        {
+          "atributo": "tenure",
+          "valor": "tenure_(59.5, 70.5]"
+        }
+      ],
+      "antecedente_serializado": "SeniorCitizen=0 AND tenure=tenure_(59.5, 70.5]",
+      "consequente": "No",
+      "suporte": 0.104096,
+      "confianca": 0.918444,
+      "score": 0.14235
+    },
+    {
+      "id": 32,
+      "posicao": 32,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "OnlineBackup",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND OnlineBackup=Yes AND PhoneService=Yes",
+      "consequente": "No",
+      "suporte": 0.103953,
+      "confianca": 0.918342,
+      "score": 0.142157
+    },
+    {
+      "id": 33,
+      "posicao": 33,
+      "antecedente": [
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(3273.68, +∞]"
+        }
+      ],
+      "antecedente_serializado": "OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+      "consequente": "No",
+      "suporte": 0.144056,
+      "confianca": 0.915913,
+      "score": 0.138629
+    },
+    {
+      "id": 34,
+      "posicao": 34,
+      "antecedente": [
+        {
+          "atributo": "DeviceProtection",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TechSupport",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(3273.68, +∞]"
+        }
+      ],
+      "antecedente_serializado": "DeviceProtection=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+      "consequente": "No",
+      "suporte": 0.110495,
+      "confianca": 0.916274,
+      "score": 0.138555
+    },
+    {
+      "id": 35,
+      "posicao": 35,
+      "antecedente": [
+        {
+          "atributo": "MonthlyCharges",
+          "valor": "MonthlyCharges_(-∞, 29.375]"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.201081,
+      "confianca": 0.914027,
+      "score": 0.136804
+    },
+    {
+      "id": 36,
+      "posicao": 36,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND OnlineSecurity=Yes AND PhoneService=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.107082,
+      "confianca": 0.914945,
+      "score": 0.136191
+    },
+    {
+      "id": 37,
+      "posicao": 37,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.10182,
+      "confianca": 0.914432,
+      "score": 0.135224
+    },
+    {
+      "id": 38,
+      "posicao": 38,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND OnlineSecurity=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.140358,
+      "confianca": 0.913043,
+      "score": 0.133681
+    },
+    {
+      "id": 39,
+      "posicao": 39,
+      "antecedente": [
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        },
+        {
+          "atributo": "TechSupport",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "OnlineSecurity=Yes AND SeniorCitizen=0 AND TechSupport=Yes",
+      "consequente": "No",
+      "suporte": 0.12628,
+      "confianca": 0.912641,
+      "score": 0.13274
+    },
+    {
+      "id": 40,
+      "posicao": 40,
+      "antecedente": [
+        {
+          "atributo": "MultipleLines",
+          "valor": "No"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(347.9, 3273.68]"
+        }
+      ],
+      "antecedente_serializado": "MultipleLines=No AND PaperlessBilling=No AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(347.9, 3273.68]",
+      "consequente": "No",
+      "suporte": 0.103953,
+      "confianca": 0.910336,
+      "score": 0.128705
+    },
+    {
+      "id": 41,
+      "posicao": 41,
+      "antecedente": [
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TechSupport",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "OnlineSecurity=Yes AND TechSupport=Yes",
+      "consequente": "No",
+      "suporte": 0.14178,
+      "confianca": 0.909672,
+      "score": 0.1284
+    },
+    {
+      "id": 42,
+      "posicao": 42,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND Partner=Yes AND PhoneService=Yes",
+      "consequente": "No",
+      "suporte": 0.110637,
+      "confianca": 0.909942,
+      "score": 0.128222
+    },
+    {
+      "id": 43,
+      "posicao": 43,
+      "antecedente": [
+        {
+          "atributo": "Dependents",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "Dependents=Yes AND PaperlessBilling=No AND Partner=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.107935,
+      "confianca": 0.908982,
+      "score": 0.126738
+    },
+    {
+      "id": 44,
+      "posicao": 44,
+      "antecedente": [
+        {
+          "atributo": "tenure",
+          "valor": "tenure_(59.5, 70.5]"
+        }
+      ],
+      "antecedente_serializado": "tenure=tenure_(59.5, 70.5]",
+      "consequente": "No",
+      "suporte": 0.122867,
+      "confianca": 0.908517,
+      "score": 0.126317
+    },
+    {
+      "id": 45,
+      "posicao": 45,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND OnlineSecurity=Yes AND PhoneService=Yes",
+      "consequente": "No",
+      "suporte": 0.115472,
+      "confianca": 0.907263,
+      "score": 0.124369
+    },
+    {
+      "id": 46,
+      "posicao": 46,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        },
+        {
+          "atributo": "TechSupport",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND SeniorCitizen=0 AND TechSupport=Yes",
+      "consequente": "No",
+      "suporte": 0.13979,
+      "confianca": 0.905991,
+      "score": 0.123013
+    },
+    {
+      "id": 47,
+      "posicao": 47,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND OnlineSecurity=Yes",
+      "consequente": "No",
+      "suporte": 0.151308,
+      "confianca": 0.904762,
+      "score": 0.121539
+    },
+    {
+      "id": 48,
+      "posicao": 48,
+      "antecedente": [
+        {
+          "atributo": "DeviceProtection",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "DeviceProtection=Yes AND OnlineSecurity=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.123862,
+      "confianca": 0.903527,
+      "score": 0.119392
+    },
+    {
+      "id": 49,
+      "posicao": 49,
+      "antecedente": [
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "PaperlessBilling=No AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.147184,
+      "confianca": 0.903141,
+      "score": 0.119295
+    },
+    {
+      "id": 50,
+      "posicao": 50,
+      "antecedente": [
+        {
+          "atributo": "Dependents",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "Dependents=Yes AND PaperlessBilling=No AND Partner=Yes",
+      "consequente": "No",
+      "suporte": 0.109215,
+      "confianca": 0.903529,
+      "score": 0.119156
+    },
+    {
+      "id": 51,
+      "posicao": 51,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "TechSupport",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND TechSupport=Yes",
+      "consequente": "No",
+      "suporte": 0.150739,
+      "confianca": 0.902896,
+      "score": 0.11904
+    },
+    {
+      "id": 52,
+      "posicao": 52,
+      "antecedente": [
+        {
+          "atributo": "MultipleLines",
+          "valor": "No"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(347.9, 3273.68]"
+        }
+      ],
+      "antecedente_serializado": "MultipleLines=No AND PaperlessBilling=No AND PhoneService=Yes AND TotalCharges=TotalCharges_(347.9, 3273.68]",
+      "consequente": "No",
+      "suporte": 0.109926,
+      "confianca": 0.901984,
+      "score": 0.117171
+    },
+    {
+      "id": 53,
+      "posicao": 53,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "OnlineBackup",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND OnlineBackup=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.122156,
+      "confianca": 0.901364,
+      "score": 0.116581
+    },
+    {
+      "id": 54,
+      "posicao": 54,
+      "antecedente": [
+        {
+          "atributo": "DeviceProtection",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "DeviceProtection=Yes AND InternetService=DSL AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.120592,
+      "confianca": 0.900212,
+      "score": 0.115125
+    },
+    {
+      "id": 55,
+      "posicao": 55,
+      "antecedente": [
+        {
+          "atributo": "Dependents",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "Dependents=Yes AND PaperlessBilling=No AND PhoneService=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.115472,
+      "confianca": 0.900222,
+      "score": 0.115057
+    },
+    {
+      "id": 56,
+      "posicao": 56,
+      "antecedente": [
+        {
+          "atributo": "OnlineBackup",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "OnlineBackup=Yes AND OnlineSecurity=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.122298,
+      "confianca": 0.899582,
+      "score": 0.114383
+    },
+    {
+      "id": 57,
+      "posicao": 57,
+      "antecedente": [
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "PaperlessBilling=No AND Partner=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.163111,
+      "confianca": 0.898903,
+      "score": 0.114256
+    },
+    {
+      "id": 58,
+      "posicao": 58,
+      "antecedente": [
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        },
+        {
+          "atributo": "TotalCharges",
+          "valor": "TotalCharges_(347.9, 3273.68]"
+        }
+      ],
+      "antecedente_serializado": "PaperlessBilling=No AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(347.9, 3273.68]",
+      "consequente": "No",
+      "suporte": 0.171359,
+      "confianca": 0.897914,
+      "score": 0.113228
+    },
+    {
+      "id": 59,
+      "posicao": 59,
+      "antecedente": [
+        {
+          "atributo": "DeviceProtection",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "DeviceProtection=Yes AND OnlineSecurity=Yes",
+      "consequente": "No",
+      "suporte": 0.141496,
+      "confianca": 0.898014,
+      "score": 0.11282
+    },
+    {
+      "id": 60,
+      "posicao": 60,
+      "antecedente": [
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "OnlineSecurity=Yes AND Partner=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.13083,
+      "confianca": 0.897561,
+      "score": 0.112117
+    },
+    {
+      "id": 61,
+      "posicao": 61,
+      "antecedente": [
+        {
+          "atributo": "OnlineBackup",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        },
+        {
+          "atributo": "TechSupport",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "OnlineBackup=Yes AND SeniorCitizen=0 AND TechSupport=Yes",
+      "consequente": "No",
+      "suporte": 0.125995,
+      "confianca": 0.896761,
+      "score": 0.111119
+    },
+    {
+      "id": 62,
+      "posicao": 62,
+      "antecedente": [
+        {
+          "atributo": "OnlineBackup",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "OnlineSecurity",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "OnlineBackup=Yes AND OnlineSecurity=Yes",
+      "consequente": "No",
+      "suporte": 0.142776,
+      "confianca": 0.894034,
+      "score": 0.108334
+    },
+    {
+      "id": 63,
+      "posicao": 63,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "One year"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "Contract=One year AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.162827,
+      "confianca": 0.893136,
+      "score": 0.107688
+    },
+    {
+      "id": 64,
+      "posicao": 64,
+      "antecedente": [
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PaymentMethod",
+          "valor": "Credit card (automatic)"
+        }
+      ],
+      "antecedente_serializado": "Partner=Yes AND PaymentMethod=Credit card (automatic)",
+      "consequente": "No",
+      "suporte": 0.108362,
+      "confianca": 0.893318,
+      "score": 0.107064
+    },
+    {
+      "id": 65,
+      "posicao": 65,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "OnlineBackup",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND OnlineBackup=Yes",
+      "consequente": "No",
+      "suporte": 0.137372,
+      "confianca": 0.892791,
+      "score": 0.106916
+    },
+    {
+      "id": 66,
+      "posicao": 66,
+      "antecedente": [
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        },
+        {
+          "atributo": "TechSupport",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "Partner=Yes AND SeniorCitizen=0 AND TechSupport=Yes",
+      "consequente": "No",
+      "suporte": 0.128982,
+      "confianca": 0.892717,
+      "score": 0.106714
+    },
+    {
+      "id": 67,
+      "posicao": 67,
+      "antecedente": [
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "SeniorCitizen",
+          "valor": "0"
+        }
+      ],
+      "antecedente_serializado": "InternetService=DSL AND Partner=Yes AND SeniorCitizen=0",
+      "consequente": "No",
+      "suporte": 0.13211,
+      "confianca": 0.892411,
+      "score": 0.106437
+    },
+    {
+      "id": 68,
+      "posicao": 68,
+      "antecedente": [
+        {
+          "atributo": "PaperlessBilling",
+          "valor": "No"
+        },
+        {
+          "atributo": "Partner",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "PhoneService",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "PaperlessBilling=No AND Partner=Yes AND PhoneService=Yes",
+      "consequente": "No",
+      "suporte": 0.159841,
+      "confianca": 0.891356,
+      "score": 0.10576
+    },
+    {
+      "id": 69,
+      "posicao": 69,
+      "antecedente": [
+        {
+          "atributo": "OnlineBackup",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "TechSupport",
+          "valor": "Yes"
+        }
+      ],
+      "antecedente_serializado": "OnlineBackup=Yes AND TechSupport=Yes",
+      "consequente": "No",
+      "suporte": 0.145478,
+      "confianca": 0.890339,
+      "score": 0.104495
+    },
+    {
+      "id": 70,
+      "posicao": 70,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "Month-to-month"
+        }
+      ],
+      "antecedente_serializado": "Contract=Month-to-month",
+      "consequente": "Yes",
+      "suporte": 0.235353,
+      "confianca": 0.427097,
+      "score": 0.103911
+    },
+    {
+      "id": 71,
+      "posicao": 71,
+      "antecedente": [
+        {
+          "atributo": "DeviceProtection",
+          "valor": "Yes"
+        },
+        {
+          "atributo": "InternetService",
+          "valor": "DSL"
+        }
+      ],
+      "antecedente_serializado": "DeviceProtection=Yes AND InternetService=DSL",
+      "consequente": "No",
+      "suporte": 0.134243,
+      "confianca": 0.889727,
+      "score": 0.103715
+    },
+    {
+      "id": 72,
+      "posicao": 72,
+      "antecedente": [
+        {
+          "atributo": "Contract",
+          "valor": "One year"
+        }
+      ],
+      "antecedente_serializado": "Contract=One year",
+      "consequente": "No",
+      "suporte": 0.185722,
+      "confianca": 0.887228,
+      "score": 0.102056
+    }
+  ],
+  "class_default": {
+    "classe": "No",
+    "descricao": "Classe aplicada quando nenhuma regra do ranking casa com o cliente (predição [O] — fallback do CBA)."
+  },
+  "modelos_alternativos": {
+    "descricao": "Modelos alternativos, retreinados no mesmo dataset completo e na mesma ordem de ranking. Seção informativa: o SQL exporta apenas o modelo principal (AC.RankAW Ponderado).",
+    "ac_ranka": {
+      "L": 77,
+      "class_default": {
+        "classe": "No"
+      },
+      "regras": [
+        {
+          "id": 1,
+          "posicao": 1,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(347.9, 3273.68]"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year AND TotalCharges=TotalCharges_(347.9, 3273.68]",
+          "consequente": "No",
+          "suporte": 0.101251,
+          "confianca": 0.987517,
+          "score": 0.760506
+        },
+        {
+          "id": 2,
+          "posicao": 2,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            },
+            {
+              "atributo": "PhoneService",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year AND PaperlessBilling=No AND PhoneService=Yes AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.107509,
+          "confianca": 0.985658,
+          "score": 0.7376
+        },
+        {
+          "id": 3,
+          "posicao": 3,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year AND PaperlessBilling=No AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.119312,
+          "confianca": 0.984742,
+          "score": 0.725835
+        },
+        {
+          "id": 4,
+          "posicao": 4,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            },
+            {
+              "atributo": "PhoneService",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year AND PaperlessBilling=No AND PhoneService=Yes",
+          "consequente": "No",
+          "suporte": 0.113908,
+          "confianca": 0.984029,
+          "score": 0.71201
+        },
+        {
+          "id": 5,
+          "posicao": 5,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year AND PaperlessBilling=No",
+          "consequente": "No",
+          "suporte": 0.126138,
+          "confianca": 0.98337,
+          "score": 0.70436
+        },
+        {
+          "id": 6,
+          "posicao": 6,
+          "antecedente": [
+            {
+              "atributo": "DeviceProtection",
+              "valor": "No internet service"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "No"
+            },
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(-∞, 29.375]"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(347.9, 3273.68]"
+            }
+          ],
+          "antecedente_serializado": "DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND TotalCharges=TotalCharges_(347.9, 3273.68]",
+          "consequente": "No",
+          "suporte": 0.128413,
+          "confianca": 0.98259,
+          "score": 0.691999
+        },
+        {
+          "id": 7,
+          "posicao": 7,
+          "antecedente": [
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(-∞, 29.375]"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(347.9, 3273.68]"
+            }
+          ],
+          "antecedente_serializado": "MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND TotalCharges=TotalCharges_(347.9, 3273.68]",
+          "consequente": "No",
+          "suporte": 0.131684,
+          "confianca": 0.979894,
+          "score": 0.652386
+        },
+        {
+          "id": 8,
+          "posicao": 8,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            },
+            {
+              "atributo": "Dependents",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year AND Dependents=Yes AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.106371,
+          "confianca": 0.979058,
+          "score": 0.634667
+        },
+        {
+          "id": 9,
+          "posicao": 9,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "PhoneService",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.136945,
+          "confianca": 0.976673,
+          "score": 0.615199
+        },
+        {
+          "id": 10,
+          "posicao": 10,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year AND Partner=Yes AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.150028,
+          "confianca": 0.975948,
+          "score": 0.610995
+        },
+        {
+          "id": 11,
+          "posicao": 11,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            },
+            {
+              "atributo": "Dependents",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year AND Dependents=Yes",
+          "consequente": "No",
+          "suporte": 0.108362,
+          "confianca": 0.976923,
+          "score": 0.610692
+        },
+        {
+          "id": 12,
+          "posicao": 12,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.213026,
+          "confianca": 0.972727,
+          "score": 0.596894
+        },
+        {
+          "id": 13,
+          "posicao": 13,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year AND Partner=Yes",
+          "consequente": "No",
+          "suporte": 0.163965,
+          "confianca": 0.973818,
+          "score": 0.594769
+        },
+        {
+          "id": 14,
+          "posicao": 14,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Two year"
+            }
+          ],
+          "antecedente_serializado": "Contract=Two year",
+          "consequente": "No",
+          "suporte": 0.232793,
+          "confianca": 0.971513,
+          "score": 0.591996
+        },
+        {
+          "id": 15,
+          "posicao": 15,
+          "antecedente": [
+            {
+              "atributo": "DeviceProtection",
+              "valor": "No internet service"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "No"
+            },
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(-∞, 29.375]"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND Partner=Yes",
+          "consequente": "No",
+          "suporte": 0.100114,
+          "confianca": 0.960437,
+          "score": 0.509776
+        },
+        {
+          "id": 16,
+          "posicao": 16,
+          "antecedente": [
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(-∞, 29.375]"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND Partner=Yes",
+          "consequente": "No",
+          "suporte": 0.102531,
+          "confianca": 0.949934,
+          "score": 0.482307
+        },
+        {
+          "id": 17,
+          "posicao": 17,
+          "antecedente": [
+            {
+              "atributo": "DeviceProtection",
+              "valor": "No internet service"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "DeviceProtection=No internet service AND InternetService=No AND PaperlessBilling=No AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.138367,
+          "confianca": 0.934678,
+          "score": 0.462519
+        },
+        {
+          "id": 18,
+          "posicao": 18,
+          "antecedente": [
+            {
+              "atributo": "DeviceProtection",
+              "valor": "No internet service"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "No"
+            },
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(-∞, 29.375]"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND PaperlessBilling=No",
+          "consequente": "No",
+          "suporte": 0.142776,
+          "confianca": 0.933953,
+          "score": 0.462193
+        },
+        {
+          "id": 19,
+          "posicao": 19,
+          "antecedente": [
+            {
+              "atributo": "DeviceProtection",
+              "valor": "No internet service"
+            }
+          ],
+          "antecedente_serializado": "DeviceProtection=No internet service",
+          "consequente": "No",
+          "suporte": 0.200085,
+          "confianca": 0.925658,
+          "score": 0.460234
+        },
+        {
+          "id": 20,
+          "posicao": 20,
+          "antecedente": [
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(-∞, 29.375]"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND PaperlessBilling=No AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.142634,
+          "confianca": 0.927845,
+          "score": 0.454875
+        },
+        {
+          "id": 21,
+          "posicao": 21,
+          "antecedente": [
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(3273.68, +∞]"
+            }
+          ],
+          "antecedente_serializado": "OnlineSecurity=Yes AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(3273.68, +∞]",
+          "consequente": "No",
+          "suporte": 0.121729,
+          "confianca": 0.927411,
+          "score": 0.451653
+        },
+        {
+          "id": 22,
+          "posicao": 22,
+          "antecedente": [
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(3273.68, +∞]"
+            }
+          ],
+          "antecedente_serializado": "Partner=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+          "consequente": "No",
+          "suporte": 0.105375,
+          "confianca": 0.927409,
+          "score": 0.449546
+        },
+        {
+          "id": 23,
+          "posicao": 23,
+          "antecedente": [
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(-∞, 29.375]"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.201081,
+          "confianca": 0.914027,
+          "score": 0.448813
+        },
+        {
+          "id": 24,
+          "posicao": 24,
+          "antecedente": [
+            {
+              "atributo": "DeviceProtection",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(3273.68, +∞]"
+            }
+          ],
+          "antecedente_serializado": "DeviceProtection=Yes AND OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+          "consequente": "No",
+          "suporte": 0.104807,
+          "confianca": 0.925879,
+          "score": 0.447879
+        },
+        {
+          "id": 25,
+          "posicao": 25,
+          "antecedente": [
+            {
+              "atributo": "OnlineBackup",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(3273.68, +∞]"
+            }
+          ],
+          "antecedente_serializado": "OnlineBackup=Yes AND OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+          "consequente": "No",
+          "suporte": 0.1031,
+          "confianca": 0.925926,
+          "score": 0.447712
+        },
+        {
+          "id": 26,
+          "posicao": 26,
+          "antecedente": [
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(3273.68, +∞]"
+            }
+          ],
+          "antecedente_serializado": "OnlineSecurity=Yes AND Partner=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+          "consequente": "No",
+          "suporte": 0.104807,
+          "confianca": 0.924718,
+          "score": 0.446705
+        },
+        {
+          "id": 27,
+          "posicao": 27,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "Fiber optic"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND InternetService=Fiber optic AND OnlineSecurity=No AND PaymentMethod=Electronic check",
+          "consequente": "Yes",
+          "suporte": 0.10182,
+          "confianca": 0.634752,
+          "score": 0.446156
+        },
+        {
+          "id": 28,
+          "posicao": 28,
+          "antecedente": [
+            {
+              "atributo": "OnlineBackup",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(3273.68, +∞]"
+            }
+          ],
+          "antecedente_serializado": "OnlineBackup=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+          "consequente": "No",
+          "suporte": 0.106229,
+          "confianca": 0.923362,
+          "score": 0.445548
+        },
+        {
+          "id": 29,
+          "posicao": 29,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(68.825, 106.775]"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND MonthlyCharges=MonthlyCharges_(68.825, 106.775] AND OnlineSecurity=No AND PaymentMethod=Electronic check",
+          "consequente": "Yes",
+          "suporte": 0.101109,
+          "confianca": 0.63369,
+          "score": 0.445488
+        },
+        {
+          "id": 30,
+          "posicao": 30,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "Fiber optic"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND InternetService=Fiber optic AND OnlineSecurity=No AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.131542,
+          "confianca": 0.606955,
+          "score": 0.444306
+        },
+        {
+          "id": 31,
+          "posicao": 31,
+          "antecedente": [
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(3273.68, +∞]"
+            }
+          ],
+          "antecedente_serializado": "SeniorCitizen=0 AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+          "consequente": "No",
+          "suporte": 0.125142,
+          "confianca": 0.91954,
+          "score": 0.444282
+        },
+        {
+          "id": 32,
+          "posicao": 32,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "Fiber optic"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND InternetService=Fiber optic AND PaymentMethod=Electronic check AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.10182,
+          "confianca": 0.629174,
+          "score": 0.443874
+        },
+        {
+          "id": 33,
+          "posicao": 33,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND OnlineSecurity=No AND PaymentMethod=Electronic check AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.112059,
+          "confianca": 0.619984,
+          "score": 0.443385
+        },
+        {
+          "id": 34,
+          "posicao": 34,
+          "antecedente": [
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(3273.68, +∞]"
+            }
+          ],
+          "antecedente_serializado": "OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+          "consequente": "No",
+          "suporte": 0.144056,
+          "confianca": 0.915913,
+          "score": 0.443361
+        },
+        {
+          "id": 35,
+          "posicao": 35,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(68.825, 106.775]"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND MonthlyCharges=MonthlyCharges_(68.825, 106.775] AND PaymentMethod=Electronic check AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.101394,
+          "confianca": 0.627089,
+          "score": 0.442888
+        },
+        {
+          "id": 36,
+          "posicao": 36,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(68.825, 106.775]"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND MonthlyCharges=MonthlyCharges_(68.825, 106.775] AND OnlineSecurity=No AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.130973,
+          "confianca": 0.602749,
+          "score": 0.442237
+        },
+        {
+          "id": 37,
+          "posicao": 37,
+          "antecedente": [
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            },
+            {
+              "atributo": "tenure",
+              "valor": "tenure_(59.5, 70.5]"
+            }
+          ],
+          "antecedente_serializado": "SeniorCitizen=0 AND tenure=tenure_(59.5, 70.5]",
+          "consequente": "No",
+          "suporte": 0.104096,
+          "confianca": 0.918444,
+          "score": 0.44075
+        },
+        {
+          "id": 38,
+          "posicao": 38,
+          "antecedente": [
+            {
+              "atributo": "InternetService",
+              "valor": "DSL"
+            },
+            {
+              "atributo": "OnlineBackup",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "PhoneService",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "InternetService=DSL AND OnlineBackup=Yes AND PhoneService=Yes",
+          "consequente": "No",
+          "suporte": 0.103953,
+          "confianca": 0.918342,
+          "score": 0.440643
+        },
+        {
+          "id": 39,
+          "posicao": 39,
+          "antecedente": [
+            {
+              "atributo": "InternetService",
+              "valor": "DSL"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "InternetService=DSL AND OnlineSecurity=Yes AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.140358,
+          "confianca": 0.913043,
+          "score": 0.440482
+        },
+        {
+          "id": 40,
+          "posicao": 40,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "Fiber optic"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND InternetService=Fiber optic AND OnlineSecurity=No AND PaperlessBilling=Yes",
+          "consequente": "Yes",
+          "suporte": 0.122298,
+          "confianca": 0.603933,
+          "score": 0.439876
+        },
+        {
+          "id": 41,
+          "posicao": 41,
+          "antecedente": [
+            {
+              "atributo": "DeviceProtection",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(3273.68, +∞]"
+            }
+          ],
+          "antecedente_serializado": "DeviceProtection=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]",
+          "consequente": "No",
+          "suporte": 0.110495,
+          "confianca": 0.916274,
+          "score": 0.439637
+        },
+        {
+          "id": 42,
+          "posicao": 42,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND OnlineSecurity=No AND PaperlessBilling=Yes AND PaymentMethod=Electronic check",
+          "consequente": "Yes",
+          "suporte": 0.102247,
+          "confianca": 0.618229,
+          "score": 0.439553
+        },
+        {
+          "id": 43,
+          "posicao": 43,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND PaperlessBilling=Yes AND PaymentMethod=Electronic check AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.102105,
+          "confianca": 0.6179,
+          "score": 0.439376
+        },
+        {
+          "id": 44,
+          "posicao": 44,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "Fiber optic"
+            },
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(68.825, 106.775]"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND InternetService=Fiber optic AND MonthlyCharges=MonthlyCharges_(68.825, 106.775] AND PaymentMethod=Electronic check",
+          "consequente": "Yes",
+          "suporte": 0.110353,
+          "confianca": 0.611024,
+          "score": 0.439095
+        },
+        {
+          "id": 45,
+          "posicao": 45,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "Fiber optic"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND InternetService=Fiber optic AND PaperlessBilling=Yes AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.121729,
+          "confianca": 0.602393,
+          "score": 0.439027
+        },
+        {
+          "id": 46,
+          "posicao": 46,
+          "antecedente": [
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "OnlineSecurity=Yes AND SeniorCitizen=0 AND TechSupport=Yes",
+          "consequente": "No",
+          "suporte": 0.12628,
+          "confianca": 0.912641,
+          "score": 0.438488
+        },
+        {
+          "id": 47,
+          "posicao": 47,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "Fiber optic"
+            },
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(68.825, 106.775]"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND InternetService=Fiber optic AND MonthlyCharges=MonthlyCharges_(68.825, 106.775] AND OnlineSecurity=No",
+          "consequente": "Yes",
+          "suporte": 0.144482,
+          "confianca": 0.584244,
+          "score": 0.438443
+        },
+        {
+          "id": 48,
+          "posicao": 48,
+          "antecedente": [
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "OnlineSecurity=Yes AND TechSupport=Yes",
+          "consequente": "No",
+          "suporte": 0.14178,
+          "confianca": 0.909672,
+          "score": 0.43794
+        },
+        {
+          "id": 49,
+          "posicao": 49,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "Fiber optic"
+            },
+            {
+              "atributo": "OnlineBackup",
+              "valor": "No"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND InternetService=Fiber optic AND OnlineBackup=No AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.107366,
+          "confianca": 0.609855,
+          "score": 0.437692
+        },
+        {
+          "id": 50,
+          "posicao": 50,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(68.825, 106.775]"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND MonthlyCharges=MonthlyCharges_(68.825, 106.775] AND OnlineSecurity=No AND PaperlessBilling=Yes",
+          "consequente": "Yes",
+          "suporte": 0.121587,
+          "confianca": 0.598321,
+          "score": 0.437224
+        },
+        {
+          "id": 51,
+          "posicao": 51,
+          "antecedente": [
+            {
+              "atributo": "InternetService",
+              "valor": "DSL"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "PhoneService",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "InternetService=DSL AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.10182,
+          "confianca": 0.914432,
+          "score": 0.43709
+        },
+        {
+          "id": 52,
+          "posicao": 52,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "Fiber optic"
+            },
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(68.825, 106.775]"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND InternetService=Fiber optic AND MonthlyCharges=MonthlyCharges_(68.825, 106.775] AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.145762,
+          "confianca": 0.578769,
+          "score": 0.436319
+        },
+        {
+          "id": 53,
+          "posicao": 53,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "Dependents",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND Dependents=No AND PaymentMethod=Electronic check AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.109499,
+          "confianca": 0.603448,
+          "score": 0.435688
+        },
+        {
+          "id": 54,
+          "posicao": 54,
+          "antecedente": [
+            {
+              "atributo": "InternetService",
+              "valor": "DSL"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "InternetService=DSL AND OnlineSecurity=Yes",
+          "consequente": "No",
+          "suporte": 0.151308,
+          "confianca": 0.904762,
+          "score": 0.435322
+        },
+        {
+          "id": 55,
+          "posicao": 55,
+          "antecedente": [
+            {
+              "atributo": "InternetService",
+              "valor": "DSL"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "InternetService=DSL AND SeniorCitizen=0 AND TechSupport=Yes",
+          "consequente": "No",
+          "suporte": 0.13979,
+          "confianca": 0.905991,
+          "score": 0.434913
+        },
+        {
+          "id": 56,
+          "posicao": 56,
+          "antecedente": [
+            {
+              "atributo": "tenure",
+              "valor": "tenure_(59.5, 70.5]"
+            }
+          ],
+          "antecedente_serializado": "tenure=tenure_(59.5, 70.5]",
+          "consequente": "No",
+          "suporte": 0.122867,
+          "confianca": 0.908517,
+          "score": 0.434874
+        },
+        {
+          "id": 57,
+          "posicao": 57,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND OnlineSecurity=No AND PaperlessBilling=Yes AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.133959,
+          "confianca": 0.583643,
+          "score": 0.434666
+        },
+        {
+          "id": 58,
+          "posicao": 58,
+          "antecedente": [
+            {
+              "atributo": "InternetService",
+              "valor": "DSL"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "PhoneService",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "InternetService=DSL AND Partner=Yes AND PhoneService=Yes",
+          "consequente": "No",
+          "suporte": 0.110637,
+          "confianca": 0.909942,
+          "score": 0.434565
+        },
+        {
+          "id": 59,
+          "posicao": 59,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "Dependents",
+              "valor": "No"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND Dependents=No AND OnlineSecurity=No AND PaymentMethod=Electronic check",
+          "consequente": "Yes",
+          "suporte": 0.108646,
+          "confianca": 0.600629,
+          "score": 0.434269
+        },
+        {
+          "id": 60,
+          "posicao": 60,
+          "antecedente": [
+            {
+              "atributo": "MultipleLines",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(347.9, 3273.68]"
+            }
+          ],
+          "antecedente_serializado": "MultipleLines=No AND PaperlessBilling=No AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(347.9, 3273.68]",
+          "consequente": "No",
+          "suporte": 0.103953,
+          "confianca": 0.910336,
+          "score": 0.43411
+        },
+        {
+          "id": 61,
+          "posicao": 61,
+          "antecedente": [
+            {
+              "atributo": "InternetService",
+              "valor": "DSL"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "InternetService=DSL AND TechSupport=Yes",
+          "consequente": "No",
+          "suporte": 0.150739,
+          "confianca": 0.902896,
+          "score": 0.433907
+        },
+        {
+          "id": 62,
+          "posicao": 62,
+          "antecedente": [
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "PhoneService",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "PaperlessBilling=No AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.147184,
+          "confianca": 0.903141,
+          "score": 0.433682
+        },
+        {
+          "id": 63,
+          "posicao": 63,
+          "antecedente": [
+            {
+              "atributo": "Dependents",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "Dependents=Yes AND PaperlessBilling=No AND Partner=Yes AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.107935,
+          "confianca": 0.908982,
+          "score": 0.433536
+        },
+        {
+          "id": 64,
+          "posicao": 64,
+          "antecedente": [
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            },
+            {
+              "atributo": "TotalCharges",
+              "valor": "TotalCharges_(347.9, 3273.68]"
+            }
+          ],
+          "antecedente_serializado": "PaperlessBilling=No AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(347.9, 3273.68]",
+          "consequente": "No",
+          "suporte": 0.171359,
+          "confianca": 0.897914,
+          "score": 0.432742
+        },
+        {
+          "id": 65,
+          "posicao": 65,
+          "antecedente": [
+            {
+              "atributo": "Dependents",
+              "valor": "No"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Dependents=No AND OnlineSecurity=No AND PaymentMethod=Electronic check AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.101536,
+          "confianca": 0.601516,
+          "score": 0.432586
+        },
+        {
+          "id": 66,
+          "posicao": 66,
+          "antecedente": [
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "PaperlessBilling=No AND Partner=Yes AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.163111,
+          "confianca": 0.898903,
+          "score": 0.4325
+        },
+        {
+          "id": 67,
+          "posicao": 67,
+          "antecedente": [
+            {
+              "atributo": "DeviceProtection",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "DeviceProtection=Yes AND OnlineSecurity=Yes AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.123862,
+          "confianca": 0.903527,
+          "score": 0.431358
+        },
+        {
+          "id": 68,
+          "posicao": 68,
+          "antecedente": [
+            {
+              "atributo": "InternetService",
+              "valor": "Fiber optic"
+            },
+            {
+              "atributo": "MonthlyCharges",
+              "valor": "MonthlyCharges_(68.825, 106.775]"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "PaymentMethod",
+              "valor": "Electronic check"
+            }
+          ],
+          "antecedente_serializado": "InternetService=Fiber optic AND MonthlyCharges=MonthlyCharges_(68.825, 106.775] AND OnlineSecurity=No AND PaymentMethod=Electronic check",
+          "consequente": "Yes",
+          "suporte": 0.105091,
+          "confianca": 0.594529,
+          "score": 0.43075
+        },
+        {
+          "id": 69,
+          "posicao": 69,
+          "antecedente": [
+            {
+              "atributo": "Dependents",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "PaperlessBilling",
+              "valor": "No"
+            },
+            {
+              "atributo": "Partner",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "Dependents=Yes AND PaperlessBilling=No AND Partner=Yes",
+          "consequente": "No",
+          "suporte": 0.109215,
+          "confianca": 0.903529,
+          "score": 0.429759
+        },
+        {
+          "id": 70,
+          "posicao": 70,
+          "antecedente": [
+            {
+              "atributo": "InternetService",
+              "valor": "DSL"
+            },
+            {
+              "atributo": "OnlineBackup",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "InternetService=DSL AND OnlineBackup=Yes AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.122156,
+          "confianca": 0.901364,
+          "score": 0.42968
+        },
+        {
+          "id": 71,
+          "posicao": 71,
+          "antecedente": [
+            {
+              "atributo": "DeviceProtection",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "Yes"
+            }
+          ],
+          "antecedente_serializado": "DeviceProtection=Yes AND OnlineSecurity=Yes",
+          "consequente": "No",
+          "suporte": 0.141496,
+          "confianca": 0.898014,
+          "score": 0.429528
+        },
+        {
+          "id": 72,
+          "posicao": 72,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "Dependents",
+              "valor": "No"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND Dependents=No AND OnlineSecurity=No AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.145336,
+          "confianca": 0.564018,
+          "score": 0.429216
+        },
+        {
+          "id": 73,
+          "posicao": 73,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "Month-to-month"
+            },
+            {
+              "atributo": "OnlineBackup",
+              "valor": "No"
+            },
+            {
+              "atributo": "OnlineSecurity",
+              "valor": "No"
+            },
+            {
+              "atributo": "TechSupport",
+              "valor": "No"
+            }
+          ],
+          "antecedente_serializado": "Contract=Month-to-month AND OnlineBackup=No AND OnlineSecurity=No AND TechSupport=No",
+          "consequente": "Yes",
+          "suporte": 0.127275,
+          "confianca": 0.575933,
+          "score": 0.429173
+        },
+        {
+          "id": 74,
+          "posicao": 74,
+          "antecedente": [
+            {
+              "atributo": "DeviceProtection",
+              "valor": "Yes"
+            },
+            {
+              "atributo": "InternetService",
+              "valor": "DSL"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "DeviceProtection=Yes AND InternetService=DSL AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.120592,
+          "confianca": 0.900212,
+          "score": 0.428735
+        },
+        {
+          "id": 75,
+          "posicao": 75,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "One year"
+            },
+            {
+              "atributo": "SeniorCitizen",
+              "valor": "0"
+            }
+          ],
+          "antecedente_serializado": "Contract=One year AND SeniorCitizen=0",
+          "consequente": "No",
+          "suporte": 0.162827,
+          "confianca": 0.893136,
+          "score": 0.428655
+        },
+        {
+          "id": 76,
+          "posicao": 76,
+          "antecedente": [
+            {
+              "atributo": "Contract",
+              "valor": "One year"
+            }
+          ],
+          "antecedente_serializado": "Contract=One year",
+          "consequente": "No",
+          "suporte": 0.185722,
+          "confianca": 0.887228,
+          "score": 0.427406
+        }
+      ]
+    }
+  }
+}
