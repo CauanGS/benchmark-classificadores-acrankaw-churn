@@ -126,12 +126,12 @@ Leitura da tabela:
 
 | Artefato | Conteúdo |
 | :--- | :--- |
-| `outputs/rules_exported.json` | metadados (base, alvo, seed, modelo, `L`, métricas, protocolo) + lista de regras do AC.RankAW (antecedente como pares atributo-valor, consequente, suporte, confiança, score de ordenação) + bloco `class_default` + seção secundária `modelos_alternativos` (regras do AC.RankA, para comparação) |
-| `outputs/rules_exported.sql` | script **executável em SQLite**: tabela `regras` (`id`, `antecedente_serializado`, `classe_predita`, `suporte`, `confianca`, `score`), `INSERT`s das regras, tabela de cliente de exemplo e as queries de decisão |
+| `outputs/rules_exported.json` | metadados (base, alvo, seed, modelo, `L`, métricas, protocolo) + lista de regras do AC.RankAW (id/`ordem` = posição no ranking, antecedente como pares atributo-valor, consequente, suporte, confiança, score de ordenação) + bloco `class_default` + seção secundária `modelos_alternativos` (regras do AC.RankA, para comparação) |
+| `outputs/rules_exported.sql` | script **executável em SQLite**: tabela `regras` (`id`, `ordem`, `antecedente_serializado`, `classe_predita`, `suporte`, `confianca`, `score`), `INSERT`s das regras, tabela de cliente de exemplo e as queries de decisão |
 
 **O modelo exportado é o AC.RankAW Ponderado** (`[GF][PM-SD][TS]`) — a escolha é de **protocolo** (spec issue #1, histórias 7-8: o empacotamento de regras de negócio entrega o método proposto), e não de desempenho: as métricas de `cba`, `ac_ranka` e `ac_rankaw` ficam registradas no JSON para transparência. O AC.RankA aparece apenas como modelo alternativo, na seção informativa `modelos_alternativos` (o SQL exporta só o AC.RankAW).
 
-No run de referência, o export gravou **L = 73** (72 regras + classe default `No`), com F1-Macro médio de **0,7104** e `id_exportacao` `4c88b5081a57d9e6` (determinístico, sem timestamp).
+No run de referência, o export gravou **L = 73** (72 regras + classe default `No`), com F1-Macro médio de **0,7104** e `id_exportacao` `ef2f6b2dddfb87ac` (determinístico, sem timestamp). O `id_exportacao` é o SHA-256 do payload canônico das regras — ele mudou quando a coluna `ordem` entrou no export (as regras, o `L` e as métricas são os mesmos do run de referência).
 
 O SQL traz duas formas equivalentes da mesma decisão de negócio (predição `[O]`):
 
@@ -140,9 +140,14 @@ O SQL traz duas formas equivalentes da mesma decisão de negócio (predição `[
 SELECT cliente_id, CASE WHEN ... THEN 'Yes' ... ELSE 'No' END AS classe_predita
 FROM cliente_exemplo;
 
--- (b) forma relacional: filtra as regras que casam e ordena por score
-SELECT r.classe_predita FROM regras r WHERE (...) ORDER BY r.score DESC, r.id ASC LIMIT 1;
+-- (b) forma relacional: filtra as regras que casam e ordena pela posição no
+--     ranking do classificador (coluna `ordem`) — a 1ª que casa vence
+SELECT r.classe_predita FROM regras r WHERE (...) ORDER BY r.ordem ASC LIMIT 1;
 ```
+
+A coluna `ordem` é a **posição da regra no ranking do classificador** (1 = primeira
+regra da predição `[O]`): é ela, e não o `score`, que reproduz a ordem de decisão
+do classificador — o `score` fica na tabela para auditoria.
 
 Uso:
 

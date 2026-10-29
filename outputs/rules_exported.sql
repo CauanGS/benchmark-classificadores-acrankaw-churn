@@ -4,7 +4,7 @@
 -- Base: Telco Customer Churn (Kaggle: blastchar/telco-customer-churn)
 -- Alvo: Churn | Seed: 42 | Modelo: ac_rankaw | L: 73 (72 regras + classe default)
 -- F1-Macro médio (10 dobras): 0.710354
--- id_exportacao: 4c88b5081a57d9e6
+-- id_exportacao: ef2f6b2dddfb87ac
 --
 -- As regras casam com valores DISCRETIZADOS (MDLP Fayyad-Irani):
 -- o cliente precisa passar pelo mesmo pré-processamento antes da consulta.
@@ -13,6 +13,7 @@
 DROP TABLE IF EXISTS regras;
 CREATE TABLE regras (
     id INTEGER PRIMARY KEY,
+    ordem INTEGER NOT NULL,
     antecedente_serializado TEXT NOT NULL,
     classe_predita TEXT NOT NULL,
     suporte REAL NOT NULL,
@@ -21,78 +22,78 @@ CREATE TABLE regras (
 );
 
 BEGIN TRANSACTION;
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (1, 'Contract=Two year AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.101251, 0.987517, 0.991672);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (2, 'Contract=Two year AND PaperlessBilling=No AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.107509, 0.985658, 0.868929);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (3, 'Contract=Two year AND PaperlessBilling=No AND SeniorCitizen=0', 'No', 0.119312, 0.984742, 0.817475);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (4, 'Contract=Two year AND PaperlessBilling=No AND PhoneService=Yes', 'No', 0.113908, 0.984029, 0.779587);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (5, 'Contract=Two year AND PaperlessBilling=No', 'No', 0.126138, 0.983370, 0.749681);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (6, 'DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.128413, 0.982590, 0.715665);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (7, 'MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.131684, 0.979894, 0.617975);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (8, 'Contract=Two year AND Dependents=Yes AND SeniorCitizen=0', 'No', 0.106371, 0.979058, 0.589927);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (9, 'Contract=Two year AND Dependents=Yes', 'No', 0.108362, 0.976923, 0.534103);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (10, 'Contract=Two year AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.136945, 0.976673, 0.531014);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (11, 'Contract=Two year AND Partner=Yes AND SeniorCitizen=0', 'No', 0.150028, 0.975948, 0.515857);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (12, 'Contract=Two year AND SeniorCitizen=0 AND gender=Female', 'No', 0.107082, 0.975389, 0.499728);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (13, 'Contract=Two year AND Partner=Yes AND PhoneService=Yes', 'No', 0.149460, 0.974050, 0.476941);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (14, 'Contract=Two year AND Partner=Yes', 'No', 0.163965, 0.973818, 0.473984);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (15, 'Contract=Two year AND gender=Female', 'No', 0.116325, 0.973810, 0.469450);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (16, 'Contract=Two year AND SeniorCitizen=0', 'No', 0.213026, 0.972727, 0.459606);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (17, 'Contract=Two year', 'No', 0.232793, 0.971513, 0.441687);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (18, 'DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND Partner=Yes', 'No', 0.100114, 0.960437, 0.305063);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (19, 'MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND Partner=Yes', 'No', 0.102531, 0.949934, 0.238465);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (20, 'DeviceProtection=No internet service AND InternetService=No AND PaperlessBilling=No AND SeniorCitizen=0', 'No', 0.138367, 0.934678, 0.181146);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (21, 'DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND PaperlessBilling=No', 'No', 0.142776, 0.933953, 0.179176);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (22, 'MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND PaperlessBilling=No AND SeniorCitizen=0', 'No', 0.142634, 0.927845, 0.163107);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (23, 'OnlineSecurity=Yes AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.121729, 0.927411, 0.161520);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (24, 'DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND SeniorCitizen=0', 'No', 0.193402, 0.926431, 0.161318);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (25, 'Partner=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.105375, 0.927409, 0.161117);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (26, 'OnlineBackup=Yes AND OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.103100, 0.925926, 0.157643);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (27, 'DeviceProtection=Yes AND OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.104807, 0.925879, 0.157577);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (28, 'OnlineSecurity=Yes AND Partner=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.104807, 0.924718, 0.154997);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (29, 'OnlineBackup=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.106229, 0.923362, 0.152119);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (30, 'SeniorCitizen=0 AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.125142, 0.919540, 0.144858);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (31, 'SeniorCitizen=0 AND tenure=tenure_(59.5, 70.5]', 'No', 0.104096, 0.918444, 0.142350);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (32, 'InternetService=DSL AND OnlineBackup=Yes AND PhoneService=Yes', 'No', 0.103953, 0.918342, 0.142157);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (33, 'OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.144056, 0.915913, 0.138629);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (34, 'DeviceProtection=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.110495, 0.916274, 0.138555);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (35, 'MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND SeniorCitizen=0', 'No', 0.201081, 0.914027, 0.136804);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (36, 'InternetService=DSL AND OnlineSecurity=Yes AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.107082, 0.914945, 0.136191);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (37, 'InternetService=DSL AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.101820, 0.914432, 0.135224);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (38, 'InternetService=DSL AND OnlineSecurity=Yes AND SeniorCitizen=0', 'No', 0.140358, 0.913043, 0.133681);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (39, 'OnlineSecurity=Yes AND SeniorCitizen=0 AND TechSupport=Yes', 'No', 0.126280, 0.912641, 0.132740);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (40, 'MultipleLines=No AND PaperlessBilling=No AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.103953, 0.910336, 0.128705);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (41, 'OnlineSecurity=Yes AND TechSupport=Yes', 'No', 0.141780, 0.909672, 0.128400);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (42, 'InternetService=DSL AND Partner=Yes AND PhoneService=Yes', 'No', 0.110637, 0.909942, 0.128222);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (43, 'Dependents=Yes AND PaperlessBilling=No AND Partner=Yes AND SeniorCitizen=0', 'No', 0.107935, 0.908982, 0.126738);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (44, 'tenure=tenure_(59.5, 70.5]', 'No', 0.122867, 0.908517, 0.126317);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (45, 'InternetService=DSL AND OnlineSecurity=Yes AND PhoneService=Yes', 'No', 0.115472, 0.907263, 0.124369);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (46, 'InternetService=DSL AND SeniorCitizen=0 AND TechSupport=Yes', 'No', 0.139790, 0.905991, 0.123013);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (47, 'InternetService=DSL AND OnlineSecurity=Yes', 'No', 0.151308, 0.904762, 0.121539);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (48, 'DeviceProtection=Yes AND OnlineSecurity=Yes AND SeniorCitizen=0', 'No', 0.123862, 0.903527, 0.119392);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (49, 'PaperlessBilling=No AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.147184, 0.903141, 0.119295);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (50, 'Dependents=Yes AND PaperlessBilling=No AND Partner=Yes', 'No', 0.109215, 0.903529, 0.119156);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (51, 'InternetService=DSL AND TechSupport=Yes', 'No', 0.150739, 0.902896, 0.119040);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (52, 'MultipleLines=No AND PaperlessBilling=No AND PhoneService=Yes AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.109926, 0.901984, 0.117171);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (53, 'InternetService=DSL AND OnlineBackup=Yes AND SeniorCitizen=0', 'No', 0.122156, 0.901364, 0.116581);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (54, 'DeviceProtection=Yes AND InternetService=DSL AND SeniorCitizen=0', 'No', 0.120592, 0.900212, 0.115125);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (55, 'Dependents=Yes AND PaperlessBilling=No AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.115472, 0.900222, 0.115057);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (56, 'OnlineBackup=Yes AND OnlineSecurity=Yes AND SeniorCitizen=0', 'No', 0.122298, 0.899582, 0.114383);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (57, 'PaperlessBilling=No AND Partner=Yes AND SeniorCitizen=0', 'No', 0.163111, 0.898903, 0.114256);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (58, 'PaperlessBilling=No AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.171359, 0.897914, 0.113228);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (59, 'DeviceProtection=Yes AND OnlineSecurity=Yes', 'No', 0.141496, 0.898014, 0.112820);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (60, 'OnlineSecurity=Yes AND Partner=Yes AND SeniorCitizen=0', 'No', 0.130830, 0.897561, 0.112117);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (61, 'OnlineBackup=Yes AND SeniorCitizen=0 AND TechSupport=Yes', 'No', 0.125995, 0.896761, 0.111119);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (62, 'OnlineBackup=Yes AND OnlineSecurity=Yes', 'No', 0.142776, 0.894034, 0.108334);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (63, 'Contract=One year AND SeniorCitizen=0', 'No', 0.162827, 0.893136, 0.107688);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (64, 'Partner=Yes AND PaymentMethod=Credit card (automatic)', 'No', 0.108362, 0.893318, 0.107064);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (65, 'InternetService=DSL AND OnlineBackup=Yes', 'No', 0.137372, 0.892791, 0.106916);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (66, 'Partner=Yes AND SeniorCitizen=0 AND TechSupport=Yes', 'No', 0.128982, 0.892717, 0.106714);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (67, 'InternetService=DSL AND Partner=Yes AND SeniorCitizen=0', 'No', 0.132110, 0.892411, 0.106437);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (68, 'PaperlessBilling=No AND Partner=Yes AND PhoneService=Yes', 'No', 0.159841, 0.891356, 0.105760);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (69, 'OnlineBackup=Yes AND TechSupport=Yes', 'No', 0.145478, 0.890339, 0.104495);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (70, 'Contract=Month-to-month', 'Yes', 0.235353, 0.427097, 0.103911);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (71, 'DeviceProtection=Yes AND InternetService=DSL', 'No', 0.134243, 0.889727, 0.103715);
-INSERT INTO regras (id, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (72, 'Contract=One year', 'No', 0.185722, 0.887228, 0.102056);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (1, 1, 'Contract=Two year AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.101251, 0.987517, 0.991672);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (2, 2, 'Contract=Two year AND PaperlessBilling=No AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.107509, 0.985658, 0.868929);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (3, 3, 'Contract=Two year AND PaperlessBilling=No AND SeniorCitizen=0', 'No', 0.119312, 0.984742, 0.817475);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (4, 4, 'Contract=Two year AND PaperlessBilling=No AND PhoneService=Yes', 'No', 0.113908, 0.984029, 0.779587);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (5, 5, 'Contract=Two year AND PaperlessBilling=No', 'No', 0.126138, 0.983370, 0.749681);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (6, 6, 'DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.128413, 0.982590, 0.715665);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (7, 7, 'MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.131684, 0.979894, 0.617975);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (8, 8, 'Contract=Two year AND Dependents=Yes AND SeniorCitizen=0', 'No', 0.106371, 0.979058, 0.589927);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (9, 9, 'Contract=Two year AND Dependents=Yes', 'No', 0.108362, 0.976923, 0.534103);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (10, 10, 'Contract=Two year AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.136945, 0.976673, 0.531014);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (11, 11, 'Contract=Two year AND Partner=Yes AND SeniorCitizen=0', 'No', 0.150028, 0.975948, 0.515857);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (12, 12, 'Contract=Two year AND SeniorCitizen=0 AND gender=Female', 'No', 0.107082, 0.975389, 0.499728);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (13, 13, 'Contract=Two year AND Partner=Yes AND PhoneService=Yes', 'No', 0.149460, 0.974050, 0.476941);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (14, 14, 'Contract=Two year AND Partner=Yes', 'No', 0.163965, 0.973818, 0.473984);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (15, 15, 'Contract=Two year AND gender=Female', 'No', 0.116325, 0.973810, 0.469450);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (16, 16, 'Contract=Two year AND SeniorCitizen=0', 'No', 0.213026, 0.972727, 0.459606);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (17, 17, 'Contract=Two year', 'No', 0.232793, 0.971513, 0.441687);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (18, 18, 'DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND Partner=Yes', 'No', 0.100114, 0.960437, 0.305063);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (19, 19, 'MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND Partner=Yes', 'No', 0.102531, 0.949934, 0.238465);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (20, 20, 'DeviceProtection=No internet service AND InternetService=No AND PaperlessBilling=No AND SeniorCitizen=0', 'No', 0.138367, 0.934678, 0.181146);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (21, 21, 'DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND PaperlessBilling=No', 'No', 0.142776, 0.933953, 0.179176);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (22, 22, 'MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND PaperlessBilling=No AND SeniorCitizen=0', 'No', 0.142634, 0.927845, 0.163107);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (23, 23, 'OnlineSecurity=Yes AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.121729, 0.927411, 0.161520);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (24, 24, 'DeviceProtection=No internet service AND InternetService=No AND MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND SeniorCitizen=0', 'No', 0.193402, 0.926431, 0.161318);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (25, 25, 'Partner=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.105375, 0.927409, 0.161117);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (26, 26, 'OnlineBackup=Yes AND OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.103100, 0.925926, 0.157643);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (27, 27, 'DeviceProtection=Yes AND OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.104807, 0.925879, 0.157577);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (28, 28, 'OnlineSecurity=Yes AND Partner=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.104807, 0.924718, 0.154997);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (29, 29, 'OnlineBackup=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.106229, 0.923362, 0.152119);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (30, 30, 'SeniorCitizen=0 AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.125142, 0.919540, 0.144858);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (31, 31, 'SeniorCitizen=0 AND tenure=tenure_(59.5, 70.5]', 'No', 0.104096, 0.918444, 0.142350);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (32, 32, 'InternetService=DSL AND OnlineBackup=Yes AND PhoneService=Yes', 'No', 0.103953, 0.918342, 0.142157);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (33, 33, 'OnlineSecurity=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.144056, 0.915913, 0.138629);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (34, 34, 'DeviceProtection=Yes AND TechSupport=Yes AND TotalCharges=TotalCharges_(3273.68, +∞]', 'No', 0.110495, 0.916274, 0.138555);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (35, 35, 'MonthlyCharges=MonthlyCharges_(-∞, 29.375] AND SeniorCitizen=0', 'No', 0.201081, 0.914027, 0.136804);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (36, 36, 'InternetService=DSL AND OnlineSecurity=Yes AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.107082, 0.914945, 0.136191);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (37, 37, 'InternetService=DSL AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.101820, 0.914432, 0.135224);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (38, 38, 'InternetService=DSL AND OnlineSecurity=Yes AND SeniorCitizen=0', 'No', 0.140358, 0.913043, 0.133681);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (39, 39, 'OnlineSecurity=Yes AND SeniorCitizen=0 AND TechSupport=Yes', 'No', 0.126280, 0.912641, 0.132740);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (40, 40, 'MultipleLines=No AND PaperlessBilling=No AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.103953, 0.910336, 0.128705);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (41, 41, 'OnlineSecurity=Yes AND TechSupport=Yes', 'No', 0.141780, 0.909672, 0.128400);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (42, 42, 'InternetService=DSL AND Partner=Yes AND PhoneService=Yes', 'No', 0.110637, 0.909942, 0.128222);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (43, 43, 'Dependents=Yes AND PaperlessBilling=No AND Partner=Yes AND SeniorCitizen=0', 'No', 0.107935, 0.908982, 0.126738);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (44, 44, 'tenure=tenure_(59.5, 70.5]', 'No', 0.122867, 0.908517, 0.126317);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (45, 45, 'InternetService=DSL AND OnlineSecurity=Yes AND PhoneService=Yes', 'No', 0.115472, 0.907263, 0.124369);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (46, 46, 'InternetService=DSL AND SeniorCitizen=0 AND TechSupport=Yes', 'No', 0.139790, 0.905991, 0.123013);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (47, 47, 'InternetService=DSL AND OnlineSecurity=Yes', 'No', 0.151308, 0.904762, 0.121539);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (48, 48, 'DeviceProtection=Yes AND OnlineSecurity=Yes AND SeniorCitizen=0', 'No', 0.123862, 0.903527, 0.119392);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (49, 49, 'PaperlessBilling=No AND Partner=Yes AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.147184, 0.903141, 0.119295);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (50, 50, 'Dependents=Yes AND PaperlessBilling=No AND Partner=Yes', 'No', 0.109215, 0.903529, 0.119156);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (51, 51, 'InternetService=DSL AND TechSupport=Yes', 'No', 0.150739, 0.902896, 0.119040);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (52, 52, 'MultipleLines=No AND PaperlessBilling=No AND PhoneService=Yes AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.109926, 0.901984, 0.117171);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (53, 53, 'InternetService=DSL AND OnlineBackup=Yes AND SeniorCitizen=0', 'No', 0.122156, 0.901364, 0.116581);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (54, 54, 'DeviceProtection=Yes AND InternetService=DSL AND SeniorCitizen=0', 'No', 0.120592, 0.900212, 0.115125);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (55, 55, 'Dependents=Yes AND PaperlessBilling=No AND PhoneService=Yes AND SeniorCitizen=0', 'No', 0.115472, 0.900222, 0.115057);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (56, 56, 'OnlineBackup=Yes AND OnlineSecurity=Yes AND SeniorCitizen=0', 'No', 0.122298, 0.899582, 0.114383);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (57, 57, 'PaperlessBilling=No AND Partner=Yes AND SeniorCitizen=0', 'No', 0.163111, 0.898903, 0.114256);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (58, 58, 'PaperlessBilling=No AND SeniorCitizen=0 AND TotalCharges=TotalCharges_(347.9, 3273.68]', 'No', 0.171359, 0.897914, 0.113228);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (59, 59, 'DeviceProtection=Yes AND OnlineSecurity=Yes', 'No', 0.141496, 0.898014, 0.112820);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (60, 60, 'OnlineSecurity=Yes AND Partner=Yes AND SeniorCitizen=0', 'No', 0.130830, 0.897561, 0.112117);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (61, 61, 'OnlineBackup=Yes AND SeniorCitizen=0 AND TechSupport=Yes', 'No', 0.125995, 0.896761, 0.111119);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (62, 62, 'OnlineBackup=Yes AND OnlineSecurity=Yes', 'No', 0.142776, 0.894034, 0.108334);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (63, 63, 'Contract=One year AND SeniorCitizen=0', 'No', 0.162827, 0.893136, 0.107688);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (64, 64, 'Partner=Yes AND PaymentMethod=Credit card (automatic)', 'No', 0.108362, 0.893318, 0.107064);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (65, 65, 'InternetService=DSL AND OnlineBackup=Yes', 'No', 0.137372, 0.892791, 0.106916);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (66, 66, 'Partner=Yes AND SeniorCitizen=0 AND TechSupport=Yes', 'No', 0.128982, 0.892717, 0.106714);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (67, 67, 'InternetService=DSL AND Partner=Yes AND SeniorCitizen=0', 'No', 0.132110, 0.892411, 0.106437);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (68, 68, 'PaperlessBilling=No AND Partner=Yes AND PhoneService=Yes', 'No', 0.159841, 0.891356, 0.105760);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (69, 69, 'OnlineBackup=Yes AND TechSupport=Yes', 'No', 0.145478, 0.890339, 0.104495);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (70, 70, 'Contract=Month-to-month', 'Yes', 0.235353, 0.427097, 0.103911);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (71, 71, 'DeviceProtection=Yes AND InternetService=DSL', 'No', 0.134243, 0.889727, 0.103715);
+INSERT INTO regras (id, ordem, antecedente_serializado, classe_predita, suporte, confianca, score) VALUES (72, 72, 'Contract=One year', 'No', 0.185722, 0.887228, 0.102056);
 COMMIT;
 
 -- --------------------------------------------------------------------
@@ -210,8 +211,11 @@ SELECT
 FROM cliente_exemplo c;
 
 -- Mesma decisão em forma relacional: filtra as regras que casam e
--- ordena por score (decrescente) — o score é o critério de ordenação
--- do modelo exportado; a primeira (maior score) vence.
+-- ordena pela POSIÇÃO NO RANKING do classificador (coluna `ordem`,
+-- ascendente) — a 1ª regra que casa vence, exatamente como na
+-- predição [O]. O `score` fica na tabela para auditoria, mas não
+-- define a ordem (no CBA o desempate da precedência é suporte e
+-- cardinalidade, não o score).
 DROP VIEW IF EXISTS decisao_cliente_por_score;
 CREATE VIEW decisao_cliente_por_score AS
 SELECT
@@ -292,7 +296,7 @@ SELECT
                OR (r.id = 70 AND c."Contract" = 'Month-to-month')
                OR (r.id = 71 AND c."DeviceProtection" = 'Yes' AND c."InternetService" = 'DSL')
                OR (r.id = 72 AND c."Contract" = 'One year')
-            ORDER BY r.score DESC, r.id ASC
+            ORDER BY r.ordem ASC
             LIMIT 1
         ),
         'No'
