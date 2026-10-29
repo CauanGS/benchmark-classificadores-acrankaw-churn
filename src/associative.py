@@ -17,6 +17,10 @@ AC.RankA (Dall'Agnol & Carvalho 2024) reutiliza o mesmo motor, trocando
 apenas a ordenação: TOPSIS (pymcdm, normalização vetorial pesada — Eq. 3 do
 paper) sobre a matriz regras × 13 MOs [GF] com pesos uniformes; empate no
 score cai na ordem de extração (determinismo).
+
+Todo classificador expõe `scores_`: o score de ordenação de cada regra
+extraída (TOPSIS no AC.RankA/AC.RankAW, confiança no CBA) — é o número que
+justifica a ordem do ranking e é exportado na Fase 3 (JSON/SQL).
 """
 
 from __future__ import annotations
@@ -162,6 +166,11 @@ def scores_topsis(matriz: pd.DataFrame, pesos: np.ndarray | None = None) -> np.n
     return np.nan_to_num(scores, nan=0.0)
 
 
+def _rank_por_scores(scores: np.ndarray) -> list[int]:
+    """Índices ordenados pelo score (decrescente); empate ⇒ índice original."""
+    return sorted(range(len(scores)), key=lambda i: (-scores[i], i))
+
+
 def ranking_topsis(matriz: pd.DataFrame, pesos: np.ndarray | None = None) -> list[int]:
     """Ranking decrescente do score TOPSIS; empate ⇒ ordem de extração.
 
@@ -169,7 +178,7 @@ def ranking_topsis(matriz: pd.DataFrame, pesos: np.ndarray | None = None) -> lis
     `pesos` (opcional) segue a mesma semântica de `scores_topsis`.
     """
     scores = scores_topsis(matriz, pesos)
-    return sorted(range(len(scores)), key=lambda i: (-scores[i], i))
+    return _rank_por_scores(scores)
 
 
 class _MotorCBA:
@@ -183,8 +192,14 @@ class _MotorCBA:
     def __init__(self, sup_min: float | None = None, max_regras: int = MAX_REGRAS):
         self.sup_min = sup_min
         self.max_regras = max_regras
+        # Score de ordenação de cada regra extraída (ver `_ordenar`); é o
+        # número que justifica a ordem do ranking (usado no export Fase 3).
+        self.scores_: dict[tuple, float] = {}
 
     def _ordenar(self, regras: list[tuple], X: pd.DataFrame, y: list[str]) -> list[tuple]:
+        # CBA: o score de ordenação é a CONFIANÇA — critério primário da
+        # precedência CBA (confiança ↓, suporte ↓, cardinalidade ↑).
+        self.scores_ = {regra: float(regra[3]) for regra in regras}
         return ordenar_precedencia(regras)
 
     def fit(self, X: pd.DataFrame, y) -> "_MotorCBA":
@@ -229,11 +244,20 @@ class ACRankA(_MotorCBA):
     do score, empate ⇒ ordem de extração. Poda M1 e predição [O] idênticas.
     """
 
+    def _pesos(self, matriz: pd.DataFrame) -> np.ndarray | None:
+        """Vetor de pesos do TOPSIS: uniforme (AC.RankA original)."""
+        return None
+
     def _ordenar(self, regras: list[tuple], X: pd.DataFrame, y: list[str]) -> list[tuple]:
         if not regras:
+            self.scores_ = {}
             return []
         matriz = matriz_gf(regras, X, y)
-        return [regras[i] for i in ranking_topsis(matriz)]
+        pesos = self._pesos(matriz)
+        scores = scores_topsis(matriz, pesos)
+        # Score de ordenação de cada regra (TOPSIS sobre as 13 MOs [GF]).
+        self.scores_ = {regra: float(score) for regra, score in zip(regras, scores)}
+        return [regras[i] for i in _rank_por_scores(scores)]
 
 
 class ACRankAW(ACRankA):
@@ -247,8 +271,6 @@ class ACRankAW(ACRankA):
     pesos [PM-SD] são recalculados por fold — o algoritmo 1 do relatório.
     """
 
-    def _ordenar(self, regras: list[tuple], X: pd.DataFrame, y: list[str]) -> list[tuple]:
-        if not regras:
-            return []
-        matriz = matriz_gf(regras, X, y)
-        return [regras[i] for i in ranking_topsis(matriz, pesos=pesos_sd(matriz))]
+    def _pesos(self, matriz: pd.DataFrame) -> np.ndarray | None:
+        """Pesos [PM-SD] (desvio padrão por coluna normalizado pela soma)."""
+        return pesos_sd(matriz)
