@@ -16,6 +16,14 @@ Semântica das fases (decisão de interface do Ticket 7):
   relatório de ΔL colunado em saída dedicada
   (`outputs/benchmark_results_phase2.csv`), sem regenerar artefatos SHAP.
   A explicação ao usuário final do portfólio fica no Ticket 8.
+- **--phase 3**: consolidação do portfólio — avalia os classificadores
+  associativos (cba, ac_ranka, ac_rankaw), seleciona o melhor por F1-Macro
+  médio (protocolo e decisão documentados em `src/rule_export.py`) e exporta
+  as regras de negócio em `outputs/rules_exported.json` e
+  `outputs/rules_exported.sql`.
+
+Caminhos configuráveis (padrões = layout do repositório): `--dataset` (CSV
+do Telco Churn) e `--saida` (diretório dos artefatos).
 
 Coluna `delta_L` (SDD 5.2, preenchida APENAS nas linhas de ac_rankaw):
 
@@ -192,26 +200,48 @@ def rodar_benchmark(caminho_dataset: str, caminho_saida: str,
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Runner do benchmark AC.RankAW Churn")
     parser.add_argument("--phase", type=int, choices=[1, 2, 3], required=True, help="Fase do benchmark")
+    parser.add_argument(
+        "--dataset",
+        default="data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv",
+        help="CSV do dataset Telco Customer Churn",
+    )
+    parser.add_argument(
+        "--saida", default="outputs", help="Diretório de saída dos artefatos"
+    )
     args = parser.parse_args(argv)
+    dir_saida = Path(args.saida)
 
     try:
         if args.phase == 1:
             rodar_benchmark(
-                caminho_dataset="data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv",
-                caminho_saida="outputs/benchmark_results.csv",
-                diretorio_shap="outputs",
+                caminho_dataset=args.dataset,
+                caminho_saida=str(dir_saida / "benchmark_results.csv"),
+                diretorio_shap=str(dir_saida),
             )
-            print("Fase 1 concluída: outputs/benchmark_results.csv")
+            print(f"Fase 1 concluída: {dir_saida / 'benchmark_results.csv'}")
         elif args.phase == 2:
             rodar_benchmark(
-                caminho_dataset="data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv",
-                caminho_saida="outputs/benchmark_results_phase2.csv",
+                caminho_dataset=args.dataset,
+                caminho_saida=str(dir_saida / "benchmark_results_phase2.csv"),
                 diretorio_shap=None,
             )
-            print("Fase 2 concluída: outputs/benchmark_results_phase2.csv")
+            print(f"Fase 2 concluída: {dir_saida / 'benchmark_results_phase2.csv'}")
         else:
-            print(f"Fase {args.phase} ainda não implementada neste ticket (planejada em issues futuras).")
-            return 2
+            from src.rule_export import exportar_regras
+
+            caminho_json = dir_saida / "rules_exported.json"
+            caminho_sql = dir_saida / "rules_exported.sql"
+            payload = exportar_regras(
+                caminho_dataset=args.dataset,
+                caminho_json=str(caminho_json),
+                caminho_sql=str(caminho_sql),
+            )
+            meta = payload["metadados"]
+            print(
+                f"Fase 3 concluída: {caminho_json} e {caminho_sql} "
+                f"(modelo: {meta['modelo']}, L={meta['L']}, "
+                f"F1-Macro médio={meta['metricas']['f1_macro']})"
+            )
     except FileNotFoundError as exc:
         print(str(exc))
         return 1
