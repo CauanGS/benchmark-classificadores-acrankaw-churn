@@ -34,6 +34,13 @@ Coluna `delta_L` (SDD 5.2, preenchida APENAS nas linhas de ac_rankaw):
   run atual — ΔL é uma razão, e a média de uma razão não é a razão das
   médias; por isso NÃO é a média dos ΔL por fold.
 - Linhas de outros modelos: célula vazia (NaN).
+
+Colunas de desvio-padrão (`<métrica>_desvio`, tickets #4/#5 — "média ±
+desvio"): o bloco "média" de cada modelo traz, além da média, o desvio
+padrão amostral (ddof=1) das 10 dobras de cada métrica; as linhas de dobra
+têm a célula vazia (NaN). Exceção documentada: `delta_L_desvio` é o desvio
+dos ΔL **por dobra** (dispersão da razão), enquanto o `delta_L` do bloco
+"média" é a razão das médias de L — grandezas diferentes por construção.
 """
 
 from __future__ import annotations
@@ -67,6 +74,17 @@ COLUNAS_CSV = [
     "L",
     "delta_L",
 ]
+# Métricas com desvio-padrão no bloco "média" (média ± desvio, tickets #4/#5).
+METRICAS_COM_DESVIO = (
+    "f1_macro",
+    "precisao_No",
+    "recall_No",
+    "precisao_Yes",
+    "recall_Yes",
+    "L",
+    "delta_L",
+)
+COLUNAS_DESVIO = [f"{m}_desvio" for m in METRICAS_COM_DESVIO]
 MENSAGEM_DATASET_AUSENTE = """\
 Dataset não encontrado em {caminho}.
 Baixe o Telco Customer Churn com:
@@ -213,15 +231,24 @@ def rodar_benchmark(caminho_dataset: str, caminho_saida: str,
         bloco = folds[folds["modelo"] == modelo]
         media = {c: round(float(bloco[c].mean()), 6) for c in COLUNAS_CSV
                  if c not in ("modelo", "fold")}
+        # média ± desvio: desvio padrão amostral (ddof=1) das dobras do run
+        desvio = {
+            f"{c}_desvio": round(float(bloco[c].std(ddof=1)), 6)
+            for c in METRICAS_COM_DESVIO
+        }
         if modelo == "ac_rankaw":
             # ΔL da média ≠ média dos ΔL (razão não-linear): recalculado a
             # partir das médias de L do run atual (ver docstring do módulo).
             media["delta_L"] = round(float(delta_L_medio), 6)
-        blocos_medias.append({"modelo": modelo, "fold": "média", **media})
+        blocos_medias.append({"modelo": modelo, "fold": "média", **media, **desvio})
 
     folds = folds.assign(fold=folds["fold"].astype(str))
+    for coluna in COLUNAS_DESVIO:
+        folds[coluna] = np.nan
     arq_saida.parent.mkdir(parents=True, exist_ok=True)
-    out = pd.concat([folds, pd.DataFrame(blocos_medias)], ignore_index=True)[COLUNAS_CSV]
+    out = pd.concat([folds, pd.DataFrame(blocos_medias)], ignore_index=True)[
+        COLUNAS_CSV + COLUNAS_DESVIO
+    ]
     out.to_csv(arq_saida, index=False, float_format="%.6f")
 
 

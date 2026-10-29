@@ -77,11 +77,44 @@ def test_rodar_benchmark_gera_csv_bem_formado(dataset_mini, tmp_path):
         "recall_Yes",
         "L",
         "delta_L",
+        "f1_macro_desvio",
+        "precisao_No_desvio",
+        "recall_No_desvio",
+        "precisao_Yes_desvio",
+        "recall_Yes_desvio",
+        "L_desvio",
+        "delta_L_desvio",
     }
     dummy = df[df["modelo"] == "dummy_no"]
     assert sorted(dummy["fold"].unique()) == [str(i) for i in range(10)] + ["média"]
     assert (dummy["L"] == 0).all()
     assert df["f1_macro"].between(0, 1).all()
+
+
+def test_rodar_benchmark_bloco_de_medias_tem_desvio_padrao(dataset_mini, tmp_path):
+    """Média ± desvio: o bloco "média" traz o desvio padrão (ddof=1) das
+    dobras de cada métrica; as linhas de fold não têm desvio."""
+    saida = tmp_path / "resultados.csv"
+    rodar_benchmark(caminho_dataset=str(dataset_mini), caminho_saida=str(saida))
+    df = pd.read_csv(saida)
+    digitos = df["fold"].astype(str).str.isdigit()
+    medias = df[df["fold"] == "média"]
+
+    for metrica in ("f1_macro", "precisao_No", "recall_No", "precisao_Yes",
+                    "recall_Yes", "L", "delta_L"):
+        assert f"{metrica}_desvio" in df.columns
+
+    for modelo in ("dummy_no", "xgboost", "cba", "ac_ranka", "ac_rankaw"):
+        folds = df[(df["modelo"] == modelo) & digitos]
+        linha = medias[medias["modelo"] == modelo].iloc[0]
+        assert linha["f1_macro_desvio"] == pytest.approx(
+            folds["f1_macro"].std(ddof=1), abs=2e-6
+        )
+        assert linha["L_desvio"] == pytest.approx(folds["L"].std(ddof=1), abs=2e-6)
+
+    # linhas de dobra não têm desvio (só o bloco de médias tem)
+    assert df[digitos]["f1_macro_desvio"].isna().all()
+    assert df[digitos]["L_desvio"].isna().all()
 
 
 def test_rodar_benchmark_bloco_de_medias(dataset_mini, tmp_path):
@@ -200,6 +233,8 @@ def test_rodar_benchmark_fase2_sem_arquivo_shap(dataset_mini, tmp_path):
     assert set(df.columns) == {
         "modelo", "fold", "f1_macro", "precisao_No", "recall_No",
         "precisao_Yes", "recall_Yes", "L", "delta_L",
+        "f1_macro_desvio", "precisao_No_desvio", "recall_No_desvio",
+        "precisao_Yes_desvio", "recall_Yes_desvio", "L_desvio", "delta_L_desvio",
     }
     aw = df[(df["modelo"] == "ac_rankaw") & (df["fold"].astype(str).str.isdigit())]
     assert len(aw) == 10
