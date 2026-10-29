@@ -26,19 +26,45 @@ from src.xgboost_model import (
 def fixture_binaria() -> tuple[pd.DataFrame, pd.Series]:
     """Fixture sintética pequena e separável: Churn=Yes quando tenure é alto.
 
-    Features em formato pós-discretização (strings de bins), como o
-    MDLPDiscretizer produz, para exercitar o one-hot do pipeline interno.
+    Frame NOVO (ramo 1 do SDD §2): numéricas como estão (valores contínuos) e
+    categóricas em texto — o one-hot das categóricas vive dentro do pipeline
+    interno do XGBoost.
     """
     rng = np.random.default_rng(42)
     n = 200
-    tenure_bin = rng.choice(["(-∞, 5]", "(5, 20]", "(20, +∞]"], size=n, p=[0.3, 0.4, 0.3])
+    tenure = rng.uniform(0, 72, size=n)
     contrato = rng.choice(["month", "year"], size=n, p=[0.5, 0.5])
-    churn = np.where(
-        (tenure_bin == "(20, +∞]") & (contrato == "month"), "Yes", "No"
-    )
-    X = pd.DataFrame({"tenure_bin": tenure_bin, "Contrato": contrato.astype(object)})
+    churn = np.where((tenure > 45) & (contrato == "month"), "Yes", "No")
+    X = pd.DataFrame({"tenure": tenure, "Contrato": contrato.astype(object)})
     y = pd.Series(churn, name="Churn")
     return X, y
+
+
+def test_pipeline_one_hot_categoricas_e_preserva_numericas():
+    """Ramo 1 (SDD §2): numéricas entram como estão; categóricas viram dummies."""
+    X = pd.DataFrame(
+        {
+            "tenure": [1.0, 2.5, 13.0],
+            "Contract": ["One year", "Month-to-month", "One year"],
+        }
+    )
+    pipeline = criar_pipeline().fit(X, [0, 1, 0])
+    # a parte de pré-processamento do pipeline define o que entra no XGBoost
+    cod = pipeline[:-1].transform(X)
+    nomes = list(pipeline[:-1].get_feature_names_out())
+
+    # a coluna numérica NÃO é transformada (valor contínuo preservado)
+    assert "tenure" in nomes
+    pos = nomes.index("tenure")
+    valores = cod[:, pos]
+    if hasattr(valores, "toarray"):
+        valores = valores.toarray()
+    assert list(np.asarray(valores).ravel()) == [1.0, 2.5, 13.0]
+
+    # a coluna categórica virou dummies (uma coluna por valor)
+    assert "Contract" not in nomes
+    assert "Contract_One year" in nomes
+    assert "Contract_Month-to-month" in nomes
 
 
 def test_busca_nested_roda_e_retorna_melhores_params(fixture_binaria):
@@ -78,9 +104,7 @@ def test_integracao_f1_macro_conhecido(fixture_binaria):
     """Com a regra conhecida (Yes = tenure alto & contrato month), o modelo
     aprendido pelo nested search deve recuperar f1_macro alto na própria base."""
     X, y = fixture_binaria
-    y_regra = np.where(
-        (X["tenure_bin"] == "(20, +∞]") & (X["Contrato"] == "month"), "Yes", "No"
-    )
+    y_regra = np.where((X["tenure"] > 45) & (X["Contrato"] == "month"), "Yes", "No")
     y_pred = treinar_e_prever(X, y, X, n_iter=10, cv_splits=3)
     score = f1_macro(list(y), list(y_pred))
     assert score == pytest.approx(f1_macro(list(y), list(y_regra)), abs=0.15)

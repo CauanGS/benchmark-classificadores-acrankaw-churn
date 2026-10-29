@@ -6,7 +6,34 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.run_benchmark import rodar_benchmark
+from src.run_benchmark import frames_do_fold, rodar_benchmark
+
+
+def test_frames_do_fold_separam_o_ramo_continuo_do_ramo_discretizado():
+    """SDD §2: o XGBoost usa o frame ORIGINAL (ramo 1) e os associativos usam
+    os bins MDLP (ramo 2). O helper é o seam público dessa separação."""
+    n = 24
+    X = pd.DataFrame(
+        {
+            "customerID": [f"C{i}" for i in range(n)],
+            "tenure": [float(i) for i in range(n)],
+            "Contract": ["One year" if i % 2 else "Month-to-month" for i in range(n)],
+        }
+    )
+    y = pd.Series(["No" if i < 12 else "Yes" for i in range(n)])
+    frames = frames_do_fold(X, y, X)
+
+    # ramo 1 (contínuos/dummies): frame original, sem customerID, valores intactos
+    cont_treino, cont_teste = frames["continuos"]
+    assert "customerID" not in cont_treino.columns
+    assert list(cont_treino["tenure"]) == list(X["tenure"])
+    assert list(cont_treino["Contract"]) == list(X["Contract"])
+
+    # ramo 2 (discretizado): bins MDLP ajustados no treino
+    disc_treino, disc_teste = frames["discretizados"]
+    assert disc_treino["tenure"].tolist() != cont_treino["tenure"].tolist()
+    assert all("tenure" in str(v) for v in disc_treino["tenure"])
+    assert len(disc_teste) == len(cont_teste)
 
 
 @pytest.fixture

@@ -1,10 +1,13 @@
 """Integração do XGBoost ao benchmark — busca nested, encoding e SHAP.
 
-Interface do slot de modelo caixa-preta usado pelo runner da fase 1:
+Interface do slot de modelo caixa-preta usado pelo runner da fase 1
+(**ramo 1 do SDD §2 — "Dados Contínuos/Dummies"**):
 
-- `criar_pipeline`: Pipeline OneHotEncoder + XGBClassifier. As features já
-  chegam discretizadas (rótulos string dos bins MDLP por fold); o one-hot
-  vive dentro do pipeline interno, então a busca nunca vê o fold de teste.
+- `criar_pipeline`: Pipeline OneHotEncoder + XGBClassifier. As features chegam
+  no frame **ORIGINAL** (sem `customerID`): as numéricas como estão e as
+  categóricas em texto — o one-hot vive dentro do pipeline interno, então a
+  busca nunca vê o fold de teste. A discretização MDLP é exclusiva do ramo 2
+  (classificadores associativos).
 - `buscar_hiperparams`: RandomizedSearchCV (30 iters) com CV interna
   StratifiedKFold (5 folds, shuffle, seed 42), scoring `f1_macro`.
 - `treinar_e_prever`: busca + predição nas classes originais, com encoding
@@ -27,6 +30,7 @@ import matplotlib.pyplot as plt
 import shap
 import xgboost as xgb
 from scipy.stats import randint, uniform
+from sklearn.compose import ColumnTransformer, make_column_selector
 from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
@@ -48,8 +52,29 @@ ESPACO_HIPERPARAMS = {
 
 
 def criar_pipeline(random_state: int = RANDOM_STATE) -> Pipeline:
-    """Pipeline one-hot + XGBoost binário determinístico (seed fixa)."""
-    pre = OneHotEncoder(handle_unknown="ignore")
+    """Pipeline one-hot (categóricas) + numéricas intactas + XGBoost binário.
+
+    Ramo 1 do SDD §2 ("Dados Contínuos/Dummies"): as categóricas viram
+    dummies (one-hot dentro do pipeline, para não vazar o fold de teste) e as
+    numéricas entram **como estão** (o `OneHotEncoder` do scikit-learn
+    codificaria todas as colunas, inclusive as numéricas — por isso o
+    `ColumnTransformer` separa os dois grupos por dtype).
+    """
+    pre = ColumnTransformer(
+        transformers=[
+            (
+                "cat",
+                OneHotEncoder(handle_unknown="ignore"),
+                make_column_selector(dtype_include=["object", "category", "bool"]),
+            ),
+            (
+                "num",
+                "passthrough",
+                make_column_selector(dtype_exclude=["object", "category", "bool"]),
+            ),
+        ],
+        verbose_feature_names_out=False,
+    )
     modelo = xgb.XGBClassifier(
         objective="binary:logistic",
         random_state=random_state,
@@ -57,7 +82,7 @@ def criar_pipeline(random_state: int = RANDOM_STATE) -> Pipeline:
         eval_metric="logloss",
         tree_method="hist",
     )
-    return Pipeline([("onehot", pre), ("xgb", modelo)])
+    return Pipeline([("pre", pre), ("xgb", modelo)])
 
 
 def buscar_hiperparams(
@@ -107,11 +132,12 @@ def treinar_e_prever(
 
 
 def _matriz_shap(pipeline: Pipeline, X: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, list[str]]:
-    """Valores SHAP (classe positiva, log-odds), matriz one-hot e nomes."""
-    X_cod = pipeline.named_steps["onehot"].transform(X)
+    """Valores SHAP (classe positiva, log-odds), matriz de entrada e nomes."""
+    pre = pipeline.named_steps["pre"]
+    X_cod = pre.transform(X)
     if hasattr(X_cod, "toarray"):
         X_cod = X_cod.toarray()
-    nomes = list(pipeline.named_steps["onehot"].get_feature_names_out())
+    nomes = list(pre.get_feature_names_out())
     explainer = shap.TreeExplainer(pipeline.named_steps["xgb"])
     return explainer.shap_values(X_cod), X_cod, nomes
 
@@ -155,9 +181,11 @@ def gerar_artefatos_shap(pipeline: Pipeline, X: pd.DataFrame, dir_saida: Path) -
         for i in ordem_pares:
             nome = nomes[i]
             base = nome.split("_", 1)
-            coluna = base[0]
-            valor = base[1] if len(base) > 1 else nome
-            pares.append(f"{coluna}={valor}")
+            if len(base) == 1:
+                # coluna numérica do ramo 1 (sem dummy): não há par valor
+                pares.append(nome)
+            else:
+                pares.append(f"{base[0]}={base[1]}")
         fig = plt.figure(figsize=(9, 5))
         plt.barh(pares, contrib[ordem_pares], color="#d62728")
         plt.xlabel("média |valor SHAP| (par feature=valor)")

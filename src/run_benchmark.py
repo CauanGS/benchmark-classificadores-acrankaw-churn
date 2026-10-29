@@ -103,6 +103,32 @@ def _linha_metricas(modelo: str, fold, y_teste, y_pred, L: int,
     }
 
 
+def frames_do_fold(
+    X_treino: pd.DataFrame, y_treino, X_teste: pd.DataFrame
+) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]:
+    """Frames de entrada dos dois ramos do pipeline experimental (SDD §2).
+
+    - ``"continuos"`` — **ramo 1 (Dados Contínuos/Dummies)**: frame ORIGINAL
+      (sem `customerID`), numéricas como estão e categóricas em texto (o
+      one-hot das categóricas vive dentro do pipeline do XGBoost, para não
+      vazar informação do fold de teste). É o frame do baseline caixa-preta.
+    - ``"discretizados"`` — **ramo 2 (Dados Categóricos Discretizados)**: bins
+      MDLP (Fayyad–Irani) ajustados **só** na dobra de treino (anti-leakage).
+      É o frame dos classificadores associativos (CBA, AC.RankA, AC.RankAW).
+
+    Devolve ``{"continuos": (X_treino, X_teste), "discretizados": (...)}``.
+    """
+    X_cont = X_treino.drop(columns=[c for c in ATRIBUTOS_IGNORADOS if c in X_treino.columns])
+    X_cont_teste = X_teste.drop(columns=[c for c in ATRIBUTOS_IGNORADOS if c in X_teste.columns])
+    discretizador = MDLPDiscretizer().fit(X_treino, y_treino)
+    X_disc = discretizador.fit_transform(X_treino, y_treino)
+    X_disc_teste = discretizador.transform(X_teste)
+    return {
+        "continuos": (X_cont, X_cont_teste),
+        "discretizados": (X_disc, X_disc_teste),
+    }
+
+
 def _linhas_do_benchmark(df: pd.DataFrame, dir_saida: str | None = None) -> list[dict]:
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=RANDOM_STATE)
     X = df.drop(columns=[ALVO] + ATRIBUTOS_IGNORADOS)
@@ -113,26 +139,27 @@ def _linhas_do_benchmark(df: pd.DataFrame, dir_saida: str | None = None) -> list
         X_treino, X_teste = X.iloc[idx_treino], X.iloc[idx_teste]
         y_treino, y_teste = y.iloc[idx_treino].to_numpy(), y.iloc[idx_teste].to_numpy()
 
-        discretizador = MDLPDiscretizer().fit(X_treino, y_treino)
-        X_treino_disc = discretizador.fit_transform(X_treino, y_treino)
-        X_teste_disc = discretizador.transform(X_teste)
+        frames = frames_do_fold(X_treino, y_treino, X_teste)
+        X_treino_cont, X_teste_cont = frames["continuos"]
+        X_treino_disc, X_teste_disc = frames["discretizados"]
 
-        # dummy_no: baseline always "No"
+        # dummy_no: baseline always "No" (features irrelevantes) — ramo 1
         modelo_dummy = DummyClassifier(strategy="constant", constant="No", random_state=RANDOM_STATE)
-        modelo_dummy.fit(X_treino_disc, y_treino)
-        y_pred_dummy = modelo_dummy.predict(X_teste_disc)
+        modelo_dummy.fit(X_treino_cont, y_treino)
+        y_pred_dummy = modelo_dummy.predict(X_teste_cont)
         linhas.append(_linha_metricas("dummy_no", fold, y_teste, y_pred_dummy, L=0))
 
-        # xgboost: busca nested dentro do fold de treino (sem leakage)
+        # xgboost: ramo 1 (atributos contínuos + dummies das categóricas),
+        # busca nested dentro do fold de treino (sem leakage)
         y_pred_xgb, melhor_pipeline = treinar_e_prever(
-            X_treino_disc,
+            X_treino_cont,
             y.iloc[idx_treino],
-            X_teste_disc,
+            X_teste_cont,
             retornar_pipeline=True,
         )
         linhas.append(_linha_metricas("xgboost", fold, y_teste, y_pred_xgb, L=1))
 
-        # cba: extração de regras de associação sobre o fold de treino
+        # cba: extração de regras de associação sobre o fold de treino (ramo 2)
         modelo_cba = CBA()
         modelo_cba.fit(X_treino_disc, y_treino)
         y_pred_cba = modelo_cba.predict(X_teste_disc)
@@ -154,9 +181,10 @@ def _linhas_do_benchmark(df: pd.DataFrame, dir_saida: str | None = None) -> list
                                       L=int(modelo_acrankaw.L),
                                       delta_L=delta_l(int(modelo_cba.L), int(modelo_acrankaw.L))))
 
-        # fold de referência (fold 0): artefatos SHAP do melhor modelo
+        # fold de referência (fold 0): artefatos SHAP do melhor modelo, no
+        # frame do ramo 1 (contínuos/dummies)
         if fold == 0 and dir_saida is not None:
-            gerar_artefatos_shap(melhor_pipeline, X_teste_disc, Path(dir_saida))
+            gerar_artefatos_shap(melhor_pipeline, X_teste_cont, Path(dir_saida))
     return linhas
 
 
