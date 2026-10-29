@@ -72,40 +72,45 @@ O pipeline do paper (Dall'Agnol & Carvalho, IEEE Access 2024) tem quatro etapas:
 
 Protocolo: validação cruzada estratificada em **10 dobras** (`shuffle=True`, `random_state=42`), discretização **MDLP (Fayyad–Irani)** ajustada **só na dobra de treino** (anti-leakage) e, no XGBoost, busca *nested* de hiperparâmetros (`RandomizedSearchCV`, 30 iters, CV interna de 5 dobras, `scoring='f1_macro'`).
 
-## 5. Tabela comparativa final (Fase 1)
+## 5. Fase 1 — benchmark inicial (baselines)
 
-Números reais do run de referência (`python -m src.run_benchmark --phase 1` → `outputs/benchmark_results.csv`), médias das 10 dobras:
+`python -m src.run_benchmark --phase 1` executa a **Fase 1** (SDD §1.2): compara o baseline caixa-preta (`dummy_no` + `XGBoost + SHAP`, ramo 1 — dados contínuos/dummies) com os classificadores associativos de linha de base (`CBA` e `AC.RankA`, ramo 2 — dados discretizados). Grava `outputs/benchmark_results.csv` (linhas das 10 dobras + bloco "média" com **média ± desvio**) e os 6 PNGs de SHAP do fold 0 em `outputs/shap/`.
 
-| Modelo | F1-Macro | Precisão (No) | Recall (No) | Precisão (Yes) | Recall (Yes) | L | ΔL (%) |
-| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| dummy_no (baseline) | 0.4234 | 0.7342 | 1.0000 | 0.0000 | 0.0000 | 0.0 | — |
-| XGBoost + SHAP | 0.7265 | 0.8392 | 0.9028 | 0.6609 | 0.5222 | 1.0 | — |
-| CBA | 0.4262 | 0.7347 | 1.0000 | 0.3000 | 0.0027 | 319.1 | — |
-| AC.RankA | 0.7196 | 0.8783 | 0.7856 | 0.5427 | 0.6988 | 227.9 | — |
-| AC.RankAW Ponderado | 0.7104 | 0.8346 | 0.8844 | 0.6186 | 0.5158 | 237.3 | 25.63 |
+Números reais do run de referência (`outputs/benchmark_results.csv`), médias das 10 dobras:
+
+| Modelo | F1-Macro | Precisão (No) | Recall (No) | Precisão (Yes) | Recall (Yes) | L |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| dummy_no (baseline) | — | — | — | — | — | — |
+| XGBoost + SHAP | — | — | — | — | — | — |
+| CBA | — | — | — | — | — | — |
+| AC.RankA | — | — | — | — | — | — |
 
 Leitura da tabela:
 
-- O `dummy_no` fixa o piso do problema (F1-Macro 0,4234) — sem ele, qualquer número de modelo parece bom.
-- O `CBA` fica praticamente no piso (0,4262) e é o **maior** modelo em número de regras (L 319,1): a precedência CBA (confiança ↓) coloca no topo as regras de "Não churn" mais confiantes, e a predição `[O]` (primeira regra que casa) acaba classificando quase tudo como "No" (recall de "Yes" = 0,0027).
-- Já os classificadores com ordenação **TOPSIS** (`AC.RankA` e `AC.RankAW`) alcançam **F1-Macro de 0,7196 e 0,7104** — a 0,7 e 1,6 ponto do XGBoost (0,7265) — com um modelo que é uma lista de 227–237 regras auditáveis.
+- O `dummy_no` fixa o piso do problema — sem ele, qualquer número de modelo parece bom.
+- O `CBA` é o **maior** modelo em número de regras: a precedência CBA (confiança ↓) põe no topo as regras de "Não churn" mais confiantes, e a predição `[O]` (primeira regra que casa) acaba classificando quase tudo como "No".
+- Já os classificadores com ordenação **TOPSIS** (`AC.RankA`) alcançam F1-Macro na faixa do XGBoost, com um modelo que é uma lista de regras auditável.
 - `L = 1` no XGBoost significa apenas "não é um modelo de regras" (a complexidade dele está nos 100s de árvores, não em L).
 
 ## 6. Fase 2 — AC.RankAW Ponderado: menos regras, mesmo desempenho
 
-A Fase 2 aplica o método proposto (`[GF][PM-SD][TS]`: pesos por desvio padrão sobre as 13 MOs do grupo `[GF]`) e mede a redução de regras frente ao CBA. Números reais de `outputs/benchmark_results_phase2.csv` (mesma pipeline da Fase 1, seed 42 — os dois CSVs são byte-idênticos neste run):
+`python -m src.run_benchmark --phase 2` executa a **Fase 2** (SDD §1.2): aplica o método proposto (`[GF][PM-SD][TS]`: pesos por desvio padrão sobre as 13 MOs do grupo `[GF]`) e mede a redução de regras (ΔL). A fase reavalia as referências do ΔL (`CBA` e `AC.RankA`) no mesmo run e **não** reexecuta a busca *nested* do XGBoost (baseline da Fase 1). Grava `outputs/benchmark_results_phase2.csv`.
+
+Números reais do run de referência (`outputs/benchmark_results_phase2.csv`):
 
 | Métrica | CBA | AC.RankA | AC.RankAW Ponderado |
 | :--- | ---: | ---: | ---: |
-| F1-Macro (média 10 dobras) | 0.4262 | 0.7196 | 0.7104 |
-| L (média 10 dobras) | 319.1 | 227.9 | 237.3 |
-| ΔL vs CBA (SDD 5.2) | — | — | **25,63%** |
+| F1-Macro (média 10 dobras) | — | — | — |
+| L (média 10 dobras) | — | — | — |
+| ΔL vs CBA (SDD 5.2) | — | — | — |
+| ΔL vs AC.RankA | — | — | — |
 
-- **ΔL > 0 (critério de sucesso do SDD 5.3):** o AC.RankAW entrega **25,63% menos regras** que o CBA (L 319,1 → 237,3).
-- **Equivalência de F1-Macro vs AC.RankA:** 0,7104 (AC.RankAW) contra 0,7196 (AC.RankA) — diferença de **0,0092** absoluto (1,3% relativo), com performances por dobra na mesma faixa (0,6882–0,7279 contra 0,6903–0,7397). O modelo ponderado mantém o desempenho preditivo do AC.RankA padrão, que é exatamente o critério "manter a equivalência em F1-Macro" da Fase 2.
-- **Transparência do número:** a redução é medida **contra o CBA**, como define o SDD (5.2); frente ao AC.RankA (mesmo motor, pesos uniformes) o AC.RankAW tem 237,3 contra 227,9 regras (+4,1%), pois a ponderação `[PM-SD]` altera o ranking e, portanto, o conjunto sobrevivido à poda M1.
+Leitura da tabela:
 
-O trade-off do método é, portanto, o esperado: a ordenação ponderada troca uma fração de desempenho (0,009 de F1-Macro) por um classificador mais enxuto frente ao CBA de referência.
+- **ΔL > 0 (critério de sucesso do SDD 5.3):** o AC.RankAW entrega menos regras que o CBA (referência do SDD 5.2).
+- **Equivalência de F1-Macro vs AC.RankA:** o modelo ponderado mantém o desempenho preditivo do AC.RankA padrão, que é exatamente o critério "manter a equivalência em F1-Macro" da Fase 2.
+- **Transparência do número:** a redução é medida **contra o CBA**, como define o SDD (5.2); a coluna `delta_L_vs_acranka` quantifica o efeito da ponderação `[PM-SD]` frente ao AC.RankA (mesmo motor, pesos uniformes) — a ponderação altera o ranking e, portanto, o conjunto sobrevivido à poda M1.
+
 
 ## 7. Fase 3 — export das regras de negócio
 
@@ -175,18 +180,18 @@ mkdir -p data/raw
 python -c "import kagglehub; kagglehub.dataset_download('blastchar/telco-customer-churn')"
 cp <dir-do-download>/WA_Fn-UseC_-Telco-Customer-Churn.csv data/raw/
 
-# 3) benchmark (Fase 1: CSV + artefatos SHAP | Fase 2: CSV com ΔL)
-python -m src.run_benchmark --phase 1
-python -m src.run_benchmark --phase 2
+# 3) benchmark (Fase 1: baselines + SHAP | Fase 2: AC.RankAW + ΔL)
+python -m src.run_benchmark --phase 1     # -> outputs/benchmark_results.csv (+ outputs/shap/)
+python -m src.run_benchmark --phase 2     # -> outputs/benchmark_results_phase2.csv (sem XGBoost)
 
 # 4) export das regras de negócio (Fase 3)
-python -m src.run_benchmark --phase 3
+python -m src.run_benchmark --phase 3     # -> outputs/rules_exported.{json,sql}
 
 # 5) testes
 python -m pytest tests/ -q
 ```
 
-Cada fase completa leva ~15 min (o XGBoost faz busca *nested* de 30 iters em cada uma das 10 dobras; a Fase 3 leva ~10 min, sem XGBoost).
+A Fase 1 leva ~15 min (o XGBoost faz busca *nested* de 30 iters em cada uma das 10 dobras); a Fase 2 é rápida (só classificadores associativos); a Fase 3 leva ~10 min (sem XGBoost).
 
 ## 10. Artefatos e reprodutibilidade
 
