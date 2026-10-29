@@ -5,8 +5,8 @@ __pycache__/
 .ipynb_checkpoints/
 data/raw/
 data/processed/
-outputs/shap/
-outputs/*.csv
-outputs/*.json
-outputs/*.sql
 .DS_Store
+
+# Os artefatos gerados em outputs/ (CSVs de benchmark, export JSON/SQL e PNGs
+# de SHAP) SÃO versionados (spec, história 18): são pequenos e documentam o
+# run de referência do portfólio. Só o dataset bruto fica ignorado (data/).
