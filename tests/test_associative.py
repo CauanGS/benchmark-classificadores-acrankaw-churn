@@ -67,24 +67,40 @@ def test_poda_m1_cenario_classico():
     assert default == "No"  # maioria do restante (t3, t4)
 
 
-def test_poda_m1_deleta_somente_acertos():
-    # regra cobre t1 (acerto) e t2 (erro); só t1 é deletada, t2 segue viva
-    # e é coberta/atendida por regra seguinte.
+def test_poda_m1_deleta_todas_as_transacoes_cobertas():
+    # Protocolo do paper (Algorithm 1, linhas 11-14; Seção II-C-2): a regra
+    # entra se acerta >=1 transação coberta viva e, ao entrar, TODAS as
+    # transações cobertas são deletadas — inclusive as classificadas errado.
     transacoes = [
-        (frozenset({"a1", "b1"}), "Yes"),
-        (frozenset({"a1"}), "No"),
-        (frozenset({"b1"}), "Yes"),
+        (frozenset({"a1"}), "Yes"),   # t0: acerto da regra
+        (frozenset({"a1"}), "No"),    # t1: erro da regra (coberta)
+        (frozenset({"a1"}), "No"),    # t2: erro da regra (coberta)
+        (frozenset({"a1"}), "No"),    # t3: erro da regra (coberta)
+        (frozenset({"b1"}), "Yes"),   # t4: não coberta
     ]
-    # NB: para simplificar o cenário, regras entram SEM erro: r1 acerta t1 e t3.
+    regras = [r(frozenset({"a1"}), "Yes", 0.25, 0.8)]
+    mantidas, default = poda_m1(regras, transacoes)
+    # a regra cobre a classe errada e ainda assim é mantida (acerta t0)
+    assert [x[0] for x in mantidas] == [frozenset({"a1"})]
+    # t1..t3 (erros) foram deletadas: o default é o do RESTANTE (t4 => "Yes"),
+    # não a maioria global do treino ("No": 3 No × 2 Yes).
+    assert default == "Yes"
+
+
+def test_poda_m1_regra_posterior_perde_a_transacao_certa_deletada():
+    # t1 é coberta pela r1 (erro) e pela r2 (acerto): com o protocolo do paper
+    # ela é deletada pela r1, e a r2 fica sem transação coberta viva => sai.
+    transacoes = [
+        (frozenset({"a1"}), "Yes"),       # t0: acerto da r1
+        (frozenset({"a1", "a2"}), "No"),  # t1: erro da r1, acerto da r2
+    ]
     regras = [
-        r(frozenset({"b1"}), "Yes", 0.8, 0.5),
-        r(frozenset({"a1"}), "Yes", 0.6, 0.4),
+        r(frozenset({"a1"}), "Yes", 0.5, 0.5),
+        r(frozenset({"a2"}), "No", 1.0, 0.5),
     ]
     mantidas, default = poda_m1(regras, transacoes)
-    # r1 (precedência maior) acerta t1 e t3 => entra; t1,t3 deletadas
-    # r2 cobre t1(deletada) e t2... t2 classe No não é acerto => r2 rejeitada
-    assert [x[0] for x in mantidas] == [frozenset({"b1"})]
-    assert default == "No"  # resto: t2
+    assert [x[0] for x in mantidas] == [frozenset({"a1"})]
+    assert default == "No"  # nada restou => maioria global do treino
 
 
 # ---- Matriz regras × MOs [GF]: contagem por transação ----
@@ -283,24 +299,28 @@ def test_scores_topsis_consistente_com_pymcdm_com_pesos_sd():
 
 @pytest.fixture
 def fixture_variancia_discriminante():
-    # Fixture projetado para que o ranking ponderado [PM-SD] diferencie as
-    # regras de modo que a poda M1 mantenha MENOS regras que na variante
-    # uniforme (colunas de alta variância dominam a distância euclidiana).
+    # Fixture projetado para que o ranking ponderado [PM-SD] diferencia as
+    # regras de modo que a poda M1 (protocolo do paper: TODAS as transações
+    # cobertas são deletadas) mantenha MENOS regras que na variante uniforme.
+    #
+    # Com pesos uniformes, o TOPSIS põe {A0=v1, A1=v0}⇒Yes na frente: ela
+    # cobre t0,t4 (Yes) e t1 (No, erro) => 3 regras no total. Com [PM-SD], a
+    # regra mais geral {A0=v1}⇒Yes vai à frente: cobre t0,t4,t5 (Yes) e t1
+    # (No, erro) => 2 regras.
     X = pd.DataFrame(
         {
-            "A0": ["v1", "v0", "v1", "v0", "v1"],
-            "A1": ["v1", "v1", "v1", "v0", "v1"],
-            "A2": ["v0", "v0", "v1", "v0", "v0"],
+            "A0": ["v1", "v1", "v0", "v0", "v1", "v1"],
+            "A1": ["v0", "v1", "v0", "v1", "v0", "v1"],
         }
     )
-    y = ["Yes", "Yes", "Yes", "Yes", "No"]
+    y = ["Yes", "No", "No", "Yes", "Yes", "Yes"]
     return X, y
 
 
 def test_acrankaw_l_menor_que_acranka(fixture_variancia_discriminante):
     X, y = fixture_variancia_discriminante
-    acranka = ACRankA(sup_min=0.15).fit(X, y)
-    acrankaw = ACRankAW(sup_min=0.15).fit(X, y)
+    acranka = ACRankA(sup_min=0.25).fit(X, y)
+    acrankaw = ACRankAW(sup_min=0.25).fit(X, y)
     assert acrankaw.L < acranka.L
     preds = list(acrankaw.predict(X))
     assert set(preds) <= {"Yes", "No"}
@@ -309,9 +329,9 @@ def test_acrankaw_l_menor_que_acranka(fixture_variancia_discriminante):
 
 def test_acrankaw_deterministico(fixture_variancia_discriminante):
     X, y = fixture_variancia_discriminante
-    w1 = ACRankAW(sup_min=0.15).fit(X, y)
-    w2 = ACRankAW(sup_min=0.15).fit(X, y)
-    X2 = pd.DataFrame({"A0": ["v1", "v0"], "A1": ["v1", "v1"], "A2": ["v0", "v0"]})
+    w1 = ACRankAW(sup_min=0.25).fit(X, y)
+    w2 = ACRankAW(sup_min=0.25).fit(X, y)
+    X2 = pd.DataFrame({"A0": ["v1", "v0"], "A1": ["v0", "v1"]})
     assert list(w1.predict(X2)) == list(w2.predict(X2))
     assert w1.regras_ == w2.regras_
     assert w1.classe_default_ == w2.classe_default_

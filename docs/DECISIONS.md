@@ -65,3 +65,13 @@ de classificadores interpretáveis e da aplicação do `AC.RankAW Ponderado`
 - `random_state = 42` (convenção Python/NumPy; paper/relatório não definem seed).
 - `requirements.txt` fixado com versões exatas.
 - Todos os splits via `StratifiedKFold(n_splits=10, shuffle=True, random_state=42)`.
+
+## 6. Correções do code review (eixo Spec) — 2026-10-29
+
+Decisões alteradas após o code review de Spec sobre a branch `int/acrankaw-spec`
+(tickets #2–#8). Cada item registra o protocolo aplicável e a fonte.
+
+| # | Tema | Decisão corrigida | Fonte |
+| :-- | :--- | :--- | :--- |
+| D1 | Poda CBA [M1] | A regra que acerta ≥1 transação coberta viva entra no classificador e **TODAS** as transações cobertas são deletadas (acertadas ou não); a classe default (maioria do restante) é recalculada a cada iteração e a final é a última calculada (ou a maioria global, se nada restou). A implementação anterior deletava só as transações acertadas — desvio do paper. | Paper, Algorithm 1 (linhas 3–15) e Seção II-C-2 "Pruning": *"all cases covered by r are deleted from D (line 13) and a default (majority) class (considering the remainder of D) is associated with the current classifier (line 14)"*; `docs/DECISIONS.md` §4 item 4 (já descrevia o protocolo correto) |
+

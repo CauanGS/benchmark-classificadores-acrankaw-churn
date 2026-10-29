@@ -3,12 +3,13 @@
 - Precedência CBA: confiança ↓, suporte ↓, cardinalidade do antecedente ↑.
 - Poda [M1] varre as regras nessa ordem mantendo as transações vivas:
   uma regra entra no classificador se acertar (classificar corretamente)
-  pelo menos uma transação viva dentre as que ela cobre; as transações
-  dentre as cobertas que ela ACERTA são deletadas (escolha do protocolo
-  AC.RankAW — as cobertas com erro permanecem vivas para regras seguintes).
-- Classe default = maioria das transações ainda vivas após o esgotamento
-  (empate resolvido pelo rótulo mais comum… empate: menor rótulo em ordem
-  alfabética → determinismo).
+  pelo menos uma transação viva dentre as que ela cobre; ao entrar, TODAS
+  as transações cobertas por ela são deletadas — acertadas ou não
+  (protocolo do paper: Algorithm 1, linhas 11-14).
+- Classe default = maioria das transações ainda vivas, recalculada a cada
+  iteração da poda; a default final é a última calculada (ou a maioria
+  global do treino, se nada restou) — empate resolvido pelo rótulo mais
+  comum… empate: menor rótulo em ordem alfabética → determinismo.
 - Predição [O]: classe da primeira regra do ranking que casa com a
   instância; fallback para a classe default.
 - L = nº de regras pós-poda + 1 (a classe default).
@@ -47,36 +48,47 @@ def ordenar_precedencia(regras: list[tuple]) -> list[tuple]:
     )
 
 
+def _classe_maioria(transacoes, indices) -> str:
+    """Classe majoritária entre as transações de `indices` (empate: alfabética)."""
+    contagens: dict[str, int] = {}
+    for i in indices:
+        classe = transacoes[i][1]
+        contagens[classe] = contagens.get(classe, 0) + 1
+    return sorted(contagens.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+
+
 def poda_m1(regras_ordenadas, transacoes) -> tuple[list[tuple], str]:
     """Poda cover-style [M1] sobre `(antecedente, classe, sup, conf)` ordenadas.
+
+    Protocolo do paper (Dall'Agnol & Carvalho 2024, Algorithm 1 — linhas 3-15;
+    Seção II-C-2 "Pruning"): para cada regra, varre-se o conjunto de transações
+    vivas D buscando as transações cobertas pela regra; se a regra classifica
+    corretamente pelo menos uma transação coberta viva, ela é marcada e entra
+    no classificador e, ao entrar, **TODAS** as transações cobertas são
+    deletadas de D (cobertas acertadas ou não). A classe default (maioria do
+    restante de D) é recalculada a cada iteração; a classe default final é a
+    última calculada (ou a maioria global do treino, se nada restou).
 
     transacoes : lista [(itens_atributos: frozenset, classe: str), ...]
     Retorno: (regras mantidas na ordem, classe default do restante).
     """
+    if not transacoes:
+        raise ValueError("poda_m1 exige ao menos uma transação de treino.")
     vivas = list(range(len(transacoes)))
     mantidas: list[tuple] = []
+    classe_default = _classe_maioria(transacoes, vivas)  # maioria global (fallback)
     for regra in regras_ordenadas:
         antecedente, classe = regra[0], regra[1]
-        acertos = [
-            i for i in vivas
-            if antecedente <= transacoes[i][0] and transacoes[i][1] == classe
-        ]
-        if acertos:
+        cobertas = [i for i in vivas if antecedente <= transacoes[i][0]]
+        if any(transacoes[i][1] == classe for i in cobertas):
             mantidas.append(regra)
-            conjunto = set(acertos)
-            vivas = [i for i in vivas if i not in conjunto]
-    if vivas:
-        contagens: dict[str, int] = {}
-        for i in vivas:
-            contagens.setdefault(transacoes[i][1], 0)
-            contagens[transacoes[i][1]] += 1
-        classe_default = sorted(contagens.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
-    else:
-        contagens: dict[str, int] = {}  # algo sempre existe em treino
-        for _, classe in transacoes:
-            contagens.setdefault(classe, 0)
-            contagens[classe] += 1
-        classe_default = sorted(contagens.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+            # TODAS as transações cobertas são deletadas (acertos e erros).
+            deletadas = set(cobertas)
+            vivas = [i for i in vivas if i not in deletadas]
+            if vivas:
+                # Classe default recalculada a cada iteração (maioria do
+                # restante); se nada restou, mantém-se a última calculada.
+                classe_default = _classe_maioria(transacoes, vivas)
     return mantidas, classe_default
 
 
