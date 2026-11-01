@@ -102,16 +102,21 @@ Leitura da tabela:
 
 `python -m src.run_benchmark --phase 2` executa a **Fase 2** (SDD §1.2): aplica o método proposto (`[GF][PM-SD][TS]`: pesos por desvio padrão sobre as 13 MOs do grupo `[GF]`) e mede a redução de regras (ΔL). A fase reavalia as referências do ΔL (`CBA` e `AC.RankA`) no mesmo run e **não** reexecuta a busca *nested* do XGBoost (baseline da Fase 1). Grava `outputs/benchmark_results_phase2.csv`.
 
-Números reais do run de referência (`outputs/benchmark_results_phase2.csv`):
+### Tabela comparativa final (Fases 1 e 2, 10 dobras, seed 42)
 
-| Métrica | CBA | AC.RankA | AC.RankAW Ponderado |
-| :--- | ---: | ---: | ---: |
-| F1-Macro (média 10 dobras) | 0,4262 ± 0,0047 | 0,7190 ± 0,0127 | **0,7204 ± 0,0147** |
-| Precisão (Yes) | 0,3000 ± 0,4830 | 0,5422 ± 0,0259 | 0,5439 ± 0,0279 |
-| Recall (Yes) | 0,0027 ± 0,0045 | 0,6972 ± 0,0298 | 0,6993 ± 0,0277 |
-| L (média 10 dobras) | 179,2 ± 5,16 | 74,0 ± 5,85 | **66,9 ± 8,14** |
-| ΔL vs CBA (SDD 5.2) | — | — | **+62,67%** |
-| ΔL vs AC.RankA | — | — | **+9,59%** |
+Números reais do run de referência (`outputs/benchmark_results.csv` +
+`outputs/benchmark_results_phase2.csv`):
+
+| Modelo | F1-Macro | Precisão `Yes` | Recall `Yes` | L | ΔL vs CBA | ΔL vs AC.RankA |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| dummy (sempre `No`) | 0,4234 ± 0,0001 | 0,0000 | 0,0000 | 0 | — | — |
+| XGBoost + SHAP (caixa-preta) | **0,7307 ± 0,0096** | 0,6672 | 0,5291 | 1 ¹ | — | — |
+| CBA (Liu et al., 1998) | 0,4262 ± 0,0047 | 0,3000 | 0,0027 | 179,2 ± 5,2 | — | — |
+| AC.RankA (pesos uniformes) | 0,7190 ± 0,0127 | 0,5422 | 0,6972 | 74,0 ± 5,8 | — | — |
+| **AC.RankAW Ponderado** | 0,7204 ± 0,0147 | 0,5439 | 0,6993 | **66,9 ± 8,1** | **+62,67%** | **+9,59%** |
+
+¹ XGBoost não é um modelo de regras: `L = 1` registra apenas "um modelo" e **não é
+comparável** ao `L` (nº de regras pós-poda) dos classificadores associativos.
 
 Leitura da tabela:
 
@@ -123,13 +128,11 @@ Leitura da tabela:
 
 O relatório de IC descreve que a matriz de entrada dos métodos de ponderação
 **já é fornecida normalizada** (é o argumento para manter o SD em vez do CV).
-O exemplo do Algoritmo 1 no relatório, porém, usa valores crus — e foi essa a
-leitura implementada: o veto de pesos `[PM-SD]` é hoje calculado sobre a
-**matriz regras × MOs crua**. A conferência do código de referência
-(`maicondallg/MCBA`, branch `Cauan` — versão de testes, não final) mostra
-normalização **por ranks** antes da ponderação e do TOPSIS, e o vetor de pesos
-ainda passa por min-max. Medição pareada (10 dobras, seed 42, mesmas regras e
-poda):
+A implementação inicial seguia o exemplo do Algoritmo 1, que usa valores crus —
+e o SD passava a medir **escala** das MOs, não variabilidade relativa. A
+implementação atual (D9) normaliza a matriz por **min-max** antes do SD; o
+TOPSIS continua na matriz crua (Eq. 3 do paper). Medição pareada (10 dobras,
+seed 42, mesmas regras e poda):
 
 | Variante `[PM-SD]` (13 MOs) | L | F1-Macro | Wilcoxon L vs uniforme |
 | :--- | ---: | ---: | :--- |
@@ -190,30 +193,45 @@ As regras casam com **valores discretizados** (MDLP): o cliente consultado preci
 
 ## 8. Exemplo de regras de negócio
 
-Trecho real de `outputs/rules_exported.json` (top-ranked do modelo exportado):
+O modelo exportado (AC.RankAW Ponderado) tem **L = 69** — 68 regras + classe
+default `No` — com **53 regras `No` e 15 regras `Yes`**. Abaixo, regras reais de
+`outputs/rules_exported.json` (a `ordem` é a posição no ranking do classificador;
+a predição `[O]` usa a primeira regra que casa).
 
-```text
-#1  Contract=Two year AND TotalCharges=TotalCharges_(347.9, 3273.68]                 => No
-    suporte 0,1013 | confiança 0,9875 | score 0,7536
-#2  Contract=Two year AND PaperlessBilling=No AND PhoneService=Yes AND SeniorCitizen=0 => No
-    suporte 0,1075 | confiança 0,9857 | score 0,7361
-#3  Contract=Two year AND PaperlessBilling=No AND SeniorCitizen=0                    => No
-    suporte 0,1193 | confiança 0,9847 | score 0,7286
-```
+**Regras de retenção (`Churn = No`) — as 5 primeiras do ranking:**
 
-E duas regras de churn (`Churn = Yes`) do ranking exportado:
+| # | Antecedente (SE…) | Então | Suporte | Confiança |
+| --: | :--- | :--- | --: | --: |
+| 1 | `Contract=Two year` E `TotalCharges` em (347,9; 3273,68] | `No` | 0,1013 | 0,9875 |
+| 2 | `Contract=Two year` E `PaperlessBilling=No` E `PhoneService=Yes` E `SeniorCitizen=0` | `No` | 0,1075 | 0,9857 |
+| 3 | `Contract=Two year` E `PaperlessBilling=No` E `SeniorCitizen=0` | `No` | 0,1193 | 0,9847 |
+| 4 | `Contract=Two year` E `PaperlessBilling=No` E `PhoneService=Yes` | `No` | 0,1139 | 0,9840 |
+| 5 | `Contract=Two year` E `PaperlessBilling=No` | `No` | 0,1261 | 0,9834 |
 
-```text
-#14 Contract=Month-to-month AND InternetService=Fiber optic AND OnlineSecurity=No   => Yes
-    suporte 0,1466 | confiança 0,5812
-#40 Dependents=No AND OnlineSecurity=No AND PaymentMethod=Electronic check
-    AND TechSupport=No                                                             => Yes
-    suporte 0,1015 | confiança 0,6015
-```
+**Regras de churn (`Churn = Yes`) — 5 do ranking:**
 
-Leitura de negócio: **cliente de contrato mensal é o perfil de churn** — e **cliente de contrato de dois anos é cliente retido**. São segmentos acionáveis por um time de CRM, com a justificativa embutida na própria regra (`suporte` = porte do segmento, `confiança` = taxa de acerto da regra, `score` = prioridade no ranking).
+| # | Antecedente (SE…) | Então | Suporte | Confiança |
+| --: | :--- | :--- | --: | --: |
+| 27 | `Contract=Month-to-month` E `InternetService=Fiber optic` E `OnlineSecurity=No` E `TechSupport=No` | `Yes` | 0,1315 | 0,6070 |
+| 30 | `Contract=Month-to-month` E `MonthlyCharges` em (68,83; 106,78] E `OnlineSecurity=No` E `TechSupport=No` | `Yes` | 0,1310 | 0,6027 |
+| 31 | `Contract=Month-to-month` E `InternetService=Fiber optic` E `OnlineSecurity=No` E `PaymentMethod=Electronic check` | `Yes` | 0,1018 | 0,6348 |
+| 32 | `Contract=Month-to-month` E `MonthlyCharges` em (68,83; 106,78] E `OnlineSecurity=No` E `PaymentMethod=Electronic check` | `Yes` | 0,1011 | 0,6337 |
+| 33 | `Contract=Month-to-month` E `OnlineSecurity=No` E `PaymentMethod=Electronic check` E `TechSupport=No` | `Yes` | 0,1121 | 0,6200 |
 
-Estrutura do modelo exportado (L = 69): **53 regras `No` e 15 regras `Yes`**, com classe default `No`. O churn é descrito por regras acionáveis e específicas (contrato mensal + fibra óptica + sem suporte técnico/segurança online + pagamento por boleto eletrônico), em vez de uma única regra ampla. O comportamento resultante é o que a validação cruzada mede: `recall_Yes = 0,6993` e `precisão_Yes = 0,5439` (§6).
+**Como ler cada regra:** `suporte` é o porte do segmento (fração dos clientes
+que casam com o antecedente); `confiança` é a taxa de acerto da regra
+(P(classe | antecedente)); `ordem` é a prioridade na decisão. Exemplo: a regra
+#1 diz que, entre os clientes de contrato de dois anos com fatura total na faixa
+média/alta, **98,75%** não deram churn — um segmento de retenção altamente
+confiável, com 10,13% da base.
+
+**Leitura de negócio:** o churn se concentra em **contrato mensal + fibra óptica
++ sem segurança online + sem suporte técnico**, com confiança entre 55% e 63%
+(contra uma taxa-base de ~26,5% de churn na base) — segmentos acionáveis por um
+time de CRM: oferecer contrato anual, suporte técnico ou segurança online a
+quem casa com essas regras. Do outro lado, **contrato de dois anos** é o sinal
+mais forte de retenção. A validação cruzada mede o efeito agregado:
+`recall_Yes = 0,6993` e `precisão_Yes = 0,5439` (§6).
 
 ## 9. Como reproduzir
 
