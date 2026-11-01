@@ -36,7 +36,6 @@ import numpy as np
 import pandas as pd
 from pymcdm import normalizations
 from pymcdm.methods import TOPSIS
-from pymcdm.weights import standard_deviation_weights
 
 from src.regra import Regra
 from src.rule_extraction import MAX_REGRAS, extrair_regras
@@ -146,27 +145,45 @@ def matriz_gf(regras: list[Regra], X_disc: pd.DataFrame, y) -> pd.DataFrame:
     return pd.DataFrame(linhas, columns=list(MEDIDAS_GF))
 
 
+def _normalizar_minmax(m: np.ndarray) -> np.ndarray:
+    """Normaliza cada coluna (critério) para [0, 1] (min-max).
+
+    Colunas constantes viram 0 (não discriminam). É a etapa que o relatório de
+    IC pressupõe ao dizer que "a matriz de entrada já é fornecida normalizada"
+    aos métodos de ponderação; sem ela o SD mede escala, não variabilidade
+    relativa.
+    """
+    lo = m.min(axis=0)
+    hi = m.max(axis=0)
+    span = hi - lo
+    span[span == 0] = 1.0
+    return (m - lo) / span
+
+
 def pesos_sd(matriz: pd.DataFrame) -> np.ndarray:
     """Vetor de pesos [PM-SD]: desvio padrão por coluna, normalizado pela soma.
 
-    Algoritmo 1 do relatório de iniciação científica (STD weights do pymcdm,
-    Q11 de docs/DECISIONS.md): `std(coluna, ddof=1) / Σ std`. Reproduz o
-    exemplo literal do relatório (matriz [[1,10,100],[2,20,105],[3,30,95]] ⇒
-    pesos [0.0625, 0.625, 0.3125] — conferido no DECISIONS.md).
+    Algoritmo 1 do relatório de iniciação científica: a matriz regras × MOs é
+    **normalizada (min-max) por coluna** antes do cálculo — o relatório afirma
+    que a matriz de entrada dos métodos de ponderação já é fornecida
+    normalizada — e os pesos são `std(coluna, ddof=1) / Σ std` (D9 em
+    `docs/DECISIONS.md` §8.3).
 
-    Matriz inteira constante (todas as colunas com norma de variância nula ⇒
-    divisão por zero no pymcdm) recebe pesos igualitários 1/k: degenera na
-    variante uniforme do AC.RankA, que é o comportamento esperado quando
-    nenhum critério discrimina. Colunas individuais com std = 0 recebem
-    peso 0 (guarda finesta do pymcdm: soma total > 0).
+    Sem a normalização, o SD passaria a medir a **escala** das MOs (ex.:
+    Sebag–Schoenauer, std ≈ 11,7, contra Confidence, std ≈ 0,18): um critério
+    dominaria os pesos e a ponderação deixaria de reduzir o modelo.
+
+    Matriz inteira constante (nenhum critério discrimina) recebe pesos
+    igualitários 1/k — degenera na variante uniforme do AC.RankA. Colunas
+    individuais constantes recebem peso 0.
     """
     m = np.asarray(matriz, dtype=float)
     k = m.shape[1]
-    std = np.std(m, axis=0, ddof=1)
+    std = np.std(_normalizar_minmax(m), axis=0, ddof=1)
     total = std.sum()
     if not np.isfinite(total) or total == 0:
         return np.full(k, 1.0 / k)
-    return standard_deviation_weights(m)
+    return std / total
 
 
 def scores_topsis(matriz: pd.DataFrame, pesos: np.ndarray | None = None) -> np.ndarray:
@@ -332,7 +349,8 @@ class ACRankAW(ACRankA):
 
     Igual ao AC.RankA, mudando SOMENTE o vetor de pesos do TOPSIS: pesos
     uniformes ⇒ pesos [PM-SD] via `pesos_sd(matriz_rules_x_mos)` (Algoritmo 1
-    do relatório — desvio padrão por coluna normalizado pela soma). Ranking,
+    do relatório: matriz regras × MOs normalizada por min-max e desvio padrão
+    por coluna normalizado pela soma — D9). Ranking,
     poda M1 e predição [O] idênticas ao motor compartilhado. Como a matriz
     regras × MOs é reconstruída a cada `fit` (um por fold de treino), os
     pesos [PM-SD] são recalculados por fold — o algoritmo 1 do relatório.
