@@ -80,7 +80,7 @@ Decisões alteradas após o code review de Spec sobre a branch `int/acrankaw-spe
 | D5 | Semântica das fases | **Fase 1** = benchmark inicial (`dummy_no`, `xgboost`, `cba`, `ac_ranka`) → `outputs/benchmark_results.csv` (+ SHAP do fold 0). **Fase 2** = aplicação do método proposto (`cba`, `ac_ranka` como referências do ΔL + `ac_rankaw`, com `delta_L` vs CBA e `delta_L_vs_acranka`) → `outputs/benchmark_results_phase2.csv`, **sem** reexecutar a busca *nested* do XGBoost. Antes a Fase 2 reexecutava o pipeline inteiro (inclusive o XGBoost) e a Fase 1 já media o AC.RankAW — as fases não correspondiam ao SDD. Os dois CSVs mantêm o **mesmo schema**. | SDD §1.2 (objetivos das fases 1 e 2) e §2 (pipeline); `src/run_benchmark.py` (`MODELOS_FASE_1`, `MODELOS_FASE_2`, `rodar_fase_1`, `rodar_fase_2`) |
 | D6 | Testes property-based das 13 MOs [GF] | `hypothesis==6.100.0` entra no `requirements.txt` e os testes das MOs passam a ter invariantes property-based (200 exemplos por propriedade): finitude, limites garantidos pela fórmula (Confidence/CPS em [0,1]; Ganascia, Yule-Q, Yule-Y e Confirmed Confidence Causal em [−1,1]; Confirm Causal em [−2,1]; J-Measure = informação mútua em [0,1]; Odds Ratio/Conviction/Odd Multiplier/Sebag–Schoenauer em [0,∞); ECR limitada acima por 1), monotonia da Confidence em `n11`/`n10` e equivalência com os valores manuais da contingência de referência. **Leverage não é testada**: ela pertence aos grupos G</C1 do paper (Table 11 ID 26), não ao [GF] — não está implementada. | Ticket #5; Paper Seção IV-B-2 (grupos de MOs) e Table 11 (fórmulas) |
 | D7 | Direção do CPS no TOPSIS | **Mantido o comportamento do paper** (`types = +1` em todas as MOs): o TOPSIS do paper (Eq. 4-5) usa `max{C_j}` como ideal positivo e `min{C_j}` como ideal negativo para **todo** critério, sem distinguir critérios de custo, e o texto afirma que todas as MOs recebem o mesmo peso no vetor W. Logo, o CPS (P(AB̄)/P(B̄), Table 11 ID 5), para o qual menor é melhor, é tratado como benefício — desvio do comportamento "ideal" da MO, **aceito por fidelidade ao protocolo publicado** e registrado como limitação no README e nas docstrings. Alternativa (não aplicada): `types = -1` na coluna do CPS, que se afastaria do paper. | Paper, Seção IV-A-1 "[TS] — TOPSIS" (Eq. 3-6 e Table 5) e Table 11 (ID 5) |
-| D8 | Artefatos versionados e run de referência | `outputs/` deixa de ser ignorado e passa a ser **versionado** (o `.gitignore` exclui apenas `data/`): os CSVs das fases 1 e 2, os 6 PNGs de SHAP e os exports JSON/SQL do **run de referência** passam a documentar o resultado real do portfólio. Os artefatos foram regravados pelo run final das 3 fases (2026-10-29, seed 42) e o README deixou de usar placeholders: §§5, 6 e 8 trazem os números e as regras efetivamente gerados. Observações registradas no README: (a) com a poda M1 fiel ao paper (D1), o AC.RankAW exportado tem **L = 73** (72 regras + default `No`), sendo 71 regras `No` e **1 regra `Yes`** (`Contract=Month-to-month`); (b) o `ΔL` de **+58,09%** é medido contra o **CBA**, como define o SDD 5.2 — frente ao **AC.RankA** (pesos uniformes) o `ΔL` é **negativo** (−1,49%), ou seja, a ponderação `[PM-SD]` muda o conjunto sobrevivido à poda M1, mas não reduz o modelo frente ao AC.RankA. | Ticket #8 (história 18 — versionar os artefatos); SDD 5.2/5.3; `README.md` §§5, 6, 8 e 10; `outputs/benchmark_results*.csv`, `outputs/rules_exported.json` |
+| D8 | Artefatos versionados e run de referência | `outputs/` deixa de ser ignorado e passa a ser **versionado** (o `.gitignore` exclui apenas `data/`): os CSVs das fases 1 e 2, os 6 PNGs de SHAP e os exports JSON/SQL do **run de referência** passam a documentar o resultado real do portfólio. Os artefatos foram regravados pelo run final das 3 fases (2026-10-31, seed 42, inclui D9) e o README deixou de usar placeholders: §§5, 6 e 8 trazem os números e as regras efetivamente gerados. Observações registradas no README: (a) com a poda M1 fiel ao paper (D1) e a normalização `[PM-SD]` da D9, o AC.RankAW exportado tem **L = 69** (68 regras + default `No`), sendo 53 regras `No` e **15 regras `Yes`**; (b) o `ΔL` de **+62,67%** é medido contra o **CBA**, como define o SDD 5.2 — frente ao **AC.RankA** (pesos uniformes) o `ΔL` é **+9,59%**: a ponderação reduz o modelo sem custo de desempenho. | Ticket #8 (história 18 — versionar os artefatos); SDD 5.2/5.3; `README.md` §§5, 6, 8 e 10; `outputs/benchmark_results*.csv`, `outputs/rules_exported.json` |
 
 ## 7. Correções do code review (eixo Standards) — 2026-10-29
 
@@ -101,4 +101,69 @@ referência. A única mudança de formato do export é a nova coluna `ordem`
 | S7 | Números mágicos | `MAX_ANTECEDENTE` (4 itens de antecedente) e `N_SPLITS` (10 dobras) passam a ser constantes nomeadas, usadas no export (JSON/SQL) e no runner — sem literais magicos no código. | `src/rule_extraction.py::MAX_ANTECEDENTE`; `src/protocolo.py::N_SPLITS` |
 | S8 | Duplicação da default | O cálculo da classe default em `poda_m1` (ramo inicial e ramo da iteração) foi extraído para um helper local. | `src/associative.py::poda_m1` |
 | S9 | Higiene | Comentário "baseline always" traduzido para PT-BR; nomes de domínio em PT-BR e nomes técnicos em inglês quando são padrões (`fold`, `score`, `seed`); helpers redundantes removidos (`_X_y`, `_carregar`). | `src/run_benchmark.py`; `src/rule_export.py`; `src/protocolo.py` |
+
+## 8. Conferência do código de referência — MCBA (branch `Cauan`), 2026-10-31
+
+O autor disponibilizou o repositório [`maicondallg/MCBA`](https://github.com/maicondallg/MCBA/tree/Cauan),
+branch `Cauan`, usada nos experimentos da iniciação científica. **Não é a
+versão final**: ao longo dos testes o código deixou de cobrir todas as
+configurações. Orientação do autor: **o artigo é a fonte de verdade para o
+grupo de MOs e os métodos**; detalhes de processamento vistos no código são
+informação complementar, que pode ser alterada/incorporada.
+
+### 8.1 O que o artigo define (mantido neste repositório)
+
+- Grupo `[GF]` = **13 MOs** de Yang & Cui (paper, Tabela 11) — como em §4.1.
+  As 6 MOs sem fórmula na Table 11 (Conviction, Yule-Q, Sebag–Schoenauer,
+  Yule-Y, ECR e Ganascia) foram implementadas com as definições da literatura
+  citadas em `src/objective_measures.py` (Tew et al., 2014; TU thesis 2022).
+- Extração Apriori (`conf-min = 0`, `sup-min` calibrado, antecedente ≤ 4);
+  ordenação por agregação MCDA/ranking; poda `[M1]`; predição ordinal `[O]`.
+- TOPSIS com **normalização vetorial** (Eq. 3) sobre a matriz regras × MOs.
+
+### 8.2 O que o código da branch de testes faz (informativo, **não adotado**)
+
+| Aspecto | Código MCBA (branch `Cauan`) | Este repositório |
+| :--- | :--- | :--- |
+| Fórmulas | `mcba/interest_measures/_equations.py` (ex.: `confidence_causal = (P(B\|A)+P(¬A\|¬B))/2`; `loevinger = 1 − P(A¬B)/(P(A)P(¬B))`) | Tew et al. / Apêndice B do paper |
+| CPS | decorado `@negative` (valor negado — custo) | tratado como benefício, por fidelidade ao Eq. 3-5 do paper (D7) |
+| Normalização da matriz | **rank** (`scipy.stats.rankdata/n`, empates pela média) — usada na ponderação **e** no TOPSIS (`TopsisRank.__call__` → `get_measures(normalized="rank")`) | matriz crua (TOPSIS vetorial interno) |
+| Pesos `[PM-SD]` | SD sobre a matriz rank-normalizada, e o vetor de pesos ainda passa por **min-max** (`InterestMeasuresGroup.normalize_weights`) | SD sobre a matriz **min-max normalizada** (D9); TOPSIS na matriz crua (Eq. 3) |
+| Poda `[M1]` | mesmo protocolo (deleta todas as transações cobertas) **+ corte no prefixo do ranking que minimiza o erro acumulado** (regras erradas + default) | mantém todas as regras que passam na poda |
+| Extração | Apriori com `confidence=0`; `support`/`max_len` por dataset em configs de 10-fold pré-geradas | `conf-min=0`, `sup-min` calibrado por dobra (≤ 10 000 regras), antecedente ≤ 4 |
+| Classificador | `OrdinalClassifier` (primeira regra que casa + default) | idêntico |
+
+### 8.3 Normalização no `[PM-SD]` (D9 — implementado)
+
+O relatório de IC afirma que a matriz de entrada dos métodos de ponderação "já
+é fornecida normalizada"; a implementação inicial aplicava o SD sobre a matriz
+crua (seguindo o exemplo do Algoritmo 1, que usa valores crus). Com isso o peso
+media **escala** (Sebag–Schoenauer, std ≈ 11,7, levava 44,6% do peso;
+Confidence, std ≈ 0,18, ≈ 2%) e o AC.RankAW **não reduzia** o modelo: L 75,1 vs
+74,0 do AC.RankA (Wilcoxon p = 0,74) e F1 0,7104 vs 0,7190 (p = 0,065).
+
+**Implementação (2026-10-31):** `pesos_sd` normaliza cada coluna da matriz
+regras × MOs por **min-max** antes de calcular `std / Σ std` (Algoritmo 1
+preservado); o TOPSIS continua consumindo a matriz **crua**, com a normalização
+vetorial da Eq. 3 do paper (que é invariante a escala por si). Variantes medidas
+nas mesmas 10 dobras (13 MOs, seed 42, mesmas regras e poda):
+
+| Variante `[PM-SD]` | L | F1-Macro | Wilcoxon L vs uniforme |
+| :--- | ---: | ---: | :--- |
+| Uniforme — AC.RankA (referência) | 74,00 ± 5,85 | 0,7190 ± 0,0127 | — |
+| Matriz crua (implementação anterior) | 75,10 ± 4,86 | 0,7104 ± 0,0123 | p = 0,7422 |
+| **Matriz min-max → TOPSIS cru (implementado)** | **66,90 ± 8,14** | **0,7204 ± 0,0147** | **p = 0,0020** |
+| Matriz rank → TOPSIS rank (código de referência) | 60,80 ± 6,44 | 0,7252 ± 0,0146 | não testado |
+| Matriz rank + corte de erro acumulado (código) | 45,10 ± 10,47 | 0,7180 ± 0,0144 | não testado |
+
+A normalização por **rank** também foi testada e **degenera em pesos
+uniformes** (as colunas passam a ter o mesmo espalhamento), resultando em
+L/F1 idênticos ao AC.RankA — por isso não foi adotada.
+
+**Resultado do run de referência (10 dobras):** AC.RankAW L **66,9 ± 8,14**,
+F1-Macro **0,7204 ± 0,0147**, precisão `Yes` 0,5439, recall `Yes` 0,6993,
+**ΔL vs CBA +62,67%** e **ΔL vs AC.RankA +9,59%** — o efeito reportado no
+relatório de IC (menos regras, mesmo desempenho). Testes: `pesos_sd` agora
+verifica normalização, invariância a escala das MOs e o caso degenerado
+(`tests/test_associative.py`).
 

@@ -35,7 +35,7 @@ O pipeline do paper (Dall'Agnol & Carvalho, IEEE Access 2024) tem quatro etapas:
 | **XGBoost + SHAP** | Caixa-preta | Gradient boosting + explicações SHAP | Baseline de mercado (alto desempenho preditivo) |
 | **CBA** | Associativo | Liu et al. (1998): precedência (confiança ↓, suporte ↓, cardinalidade ↑), poda M1, predição [O] | Baseline clássico da literatura de regras |
 | **AC.RankA** | Associativo | Mesma extração/poda do CBA, ordenação por **TOPSIS** sobre as 13 MOs `[GF]` com pesos **uniformes** (Dall'Agnol & Carvalho, 2024) | Baseline de agregação multicritério |
-| **AC.RankAW Ponderado** | Associativo (proposta) | AC.RankA com pesos **`[PM-SD]`** (desvio padrão por coluna, Algoritmo 1 do relatório) no TOPSIS — `[GF][PM-SD][TS]` | **Proposta do autor (foco do estudo)** |
+| **AC.RankAW Ponderado** | Associativo (proposta) | AC.RankA com pesos **`[PM-SD]`** (desvio padrão por coluna, Algoritmo 1 do relatório) no TOPSIS — `[GF][PM-SD][TS]` (normalização da matriz: ver **nota de fidelidade** na §6) | **Proposta do autor (foco do estudo)** |
 
 `L` é o tamanho do modelo (nº de regras pós-poda + 1 classe default) e `ΔL` a taxa de redução de regras frente ao CBA (SDD 5.2):
 
@@ -98,7 +98,7 @@ Leitura da tabela:
 - Já os classificadores com ordenação **TOPSIS** (`AC.RankA`) alcançam F1-Macro na faixa do XGBoost (**0,7190** vs **0,7307**), com um modelo que é uma lista de regras auditável e **58,7% menor** que o CBA (74,0 vs 179,2 regras).
 - `L = 1` no XGBoost significa apenas "não é um modelo de regras" (a complexidade dele está nos 100s de árvores, não em L).
 
-## 6. Fase 2 — AC.RankAW Ponderado: menos regras, mesmo desempenho
+## 6. Fase 2 — AC.RankAW Ponderado: menos regras que o CBA
 
 `python -m src.run_benchmark --phase 2` executa a **Fase 2** (SDD §1.2): aplica o método proposto (`[GF][PM-SD][TS]`: pesos por desvio padrão sobre as 13 MOs do grupo `[GF]`) e mede a redução de regras (ΔL). A fase reavalia as referências do ΔL (`CBA` e `AC.RankA`) no mesmo run e **não** reexecuta a busca *nested* do XGBoost (baseline da Fase 1). Grava `outputs/benchmark_results_phase2.csv`.
 
@@ -106,18 +106,49 @@ Números reais do run de referência (`outputs/benchmark_results_phase2.csv`):
 
 | Métrica | CBA | AC.RankA | AC.RankAW Ponderado |
 | :--- | ---: | ---: | ---: |
-| F1-Macro (média 10 dobras) | 0,4262 ± 0,0047 | 0,7190 ± 0,0127 | 0,7104 ± 0,0123 |
-| Precisão (Yes) | 0,3000 ± 0,4830 | 0,5422 ± 0,0259 | 0,6186 ± 0,0277 |
-| Recall (Yes) | 0,0027 ± 0,0045 | 0,6972 ± 0,0298 | 0,5158 ± 0,0255 |
-| L (média 10 dobras) | 179,2 ± 5,16 | 74,0 ± 5,85 | 75,1 ± 4,86 |
-| ΔL vs CBA (SDD 5.2) | — | — | **+58,09%** |
-| ΔL vs AC.RankA | — | — | **−1,49%** |
+| F1-Macro (média 10 dobras) | 0,4262 ± 0,0047 | 0,7190 ± 0,0127 | **0,7204 ± 0,0147** |
+| Precisão (Yes) | 0,3000 ± 0,4830 | 0,5422 ± 0,0259 | 0,5439 ± 0,0279 |
+| Recall (Yes) | 0,0027 ± 0,0045 | 0,6972 ± 0,0298 | 0,6993 ± 0,0277 |
+| L (média 10 dobras) | 179,2 ± 5,16 | 74,0 ± 5,85 | **66,9 ± 8,14** |
+| ΔL vs CBA (SDD 5.2) | — | — | **+62,67%** |
+| ΔL vs AC.RankA | — | — | **+9,59%** |
 
 Leitura da tabela:
 
-- **ΔL > 0 (critério de sucesso do SDD 5.3):** o AC.RankAW entrega **58,09% menos regras** que o CBA (referência do SDD 5.2) — 75,1 contra 179,2 regras em média.
-- **Equivalência de F1-Macro vs AC.RankA:** o modelo ponderado mantém o desempenho preditivo do AC.RankA padrão (0,7104 vs 0,7190): a diferença de **0,0086** é menor que o desvio-padrão de qualquer um dos dois modelos (0,0123 e 0,0127), ou seja, equivalente dentro da variabilidade das dobras. O que muda é o **perfil do erro**: o ponderado sobe a precisão em `Yes` (0,5422 → 0,6186) e o recall em `No` (0,7856 → 0,8844), em troca de menos recall em `Yes` (0,6972 → 0,5158) — entre os clientes que ele sinaliza como churn, erra menos; mas deixa mais churners escaparem como retidos.
-- **Transparência do número:** a redução é medida **contra o CBA**, como define o SDD (5.2); a coluna `delta_L_vs_acranka` quantifica o efeito da ponderação `[PM-SD]` frente ao AC.RankA (mesmo motor, pesos uniformes) e é **negativa** (−1,49%): a ponderação muda o ranking e, portanto, o conjunto que sobrevive à poda M1, mas **não** reduz o modelo frente ao AC.RankA uniforme — neste run ela o torna 1,1 regra maior em média. O ganho do AC.RankAW está em compactar o CBA, não em suplantar o AC.RankA em tamanho.
+- **ΔL > 0 (critério de sucesso do SDD 5.3):** o AC.RankAW entrega **62,67% menos regras** que o CBA (referência do SDD 5.2) — 66,9 contra 179,2 regras em média.
+- **Equivalência de F1-Macro vs AC.RankA:** o modelo ponderado mantém o desempenho preditivo do AC.RankA padrão (0,7204 vs 0,7190): a diferença de **0,0014** é muito menor que o desvio-padrão de ambos (0,0147 e 0,0127). O perfil do erro também se mantém: precisão em `Yes` 0,5439 vs 0,5422 e recall em `Yes` 0,6993 vs 0,6972.
+- **Transparência do número:** a redução é medida **contra o CBA**, como define o SDD (5.2); a coluna `delta_L_vs_acranka` quantifica o efeito da ponderação `[PM-SD]` frente ao AC.RankA (mesmo motor, pesos uniformes) e agora é **positiva (+9,59%)**: a ponderação reduz o modelo em ~7 regras sem custo de desempenho, que é o efeito reportado no relatório de IC.
+
+### Nota de fidelidade — normalização no `[PM-SD]` (implementada)
+
+O relatório de IC descreve que a matriz de entrada dos métodos de ponderação
+**já é fornecida normalizada** (é o argumento para manter o SD em vez do CV).
+O exemplo do Algoritmo 1 no relatório, porém, usa valores crus — e foi essa a
+leitura implementada: o veto de pesos `[PM-SD]` é hoje calculado sobre a
+**matriz regras × MOs crua**. A conferência do código de referência
+(`maicondallg/MCBA`, branch `Cauan` — versão de testes, não final) mostra
+normalização **por ranks** antes da ponderação e do TOPSIS, e o vetor de pesos
+ainda passa por min-max. Medição pareada (10 dobras, seed 42, mesmas regras e
+poda):
+
+| Variante `[PM-SD]` (13 MOs) | L | F1-Macro | Wilcoxon L vs uniforme |
+| :--- | ---: | ---: | :--- |
+| Uniforme (AC.RankA) | 74,00 | 0,7190 | — |
+| Matriz crua (implementação anterior) | 75,10 | 0,7104 | p=0,74 |
+| **Matriz min-max → TOPSIS cru (implementado)** | **66,90** | **0,7204** | **p=0,0020** |
+| Matriz rank → TOPSIS rank (código MCBA) | 60,80 | 0,7252 | não testado |
+| Matriz rank + corte de erro (código MCBA) | 45,10 | 0,7180 | não testado |
+
+Sem normalizar antes do SD, o peso mede **escala** (Sebag–Schoenauer leva 44,6%
+do peso) em vez de variabilidade relativa — por isso a ponderação não reduzia o
+modelo e ainda derrubava o recall de churn (0,697 → 0,516). **Decisão
+implementada (D9):** os pesos `[PM-SD]` passam a ser calculados sobre a matriz
+regras × MOs **normalizada por min-max** (o relatório afirma que a matriz de
+entrada já é fornecida normalizada) e o TOPSIS continua consumindo a matriz
+**crua**, com a normalização vetorial interna da Eq. 3 do paper. Com isso o
+efeito esperado aparece: L 66,9 vs 74,0 do AC.RankA (Wilcoxon p = 0,0020) e
+F1-Macro mantido (p = 0,56). Detalhes em
+[`docs/DECISIONS.md`](docs/DECISIONS.md) §8.3.
 
 
 ## 7. Fase 3 — export das regras de negócio
@@ -131,7 +162,7 @@ Leitura da tabela:
 
 **O modelo exportado é o AC.RankAW Ponderado** (`[GF][PM-SD][TS]`) — a escolha é de **protocolo** (spec issue #1, histórias 7-8: o empacotamento de regras de negócio entrega o método proposto), e não de desempenho: as métricas de `cba`, `ac_ranka` e `ac_rankaw` ficam registradas no JSON para transparência. O AC.RankA aparece apenas como modelo alternativo, na seção informativa `modelos_alternativos` (o SQL exporta só o AC.RankAW).
 
-No run de referência, o export gravou **L = 73** (72 regras + classe default `No`), com F1-Macro médio de **0,7104** e `id_exportacao` `ef2f6b2dddfb87ac` (determinístico, sem timestamp). O `id_exportacao` é o SHA-256 do payload canônico das regras — ele mudou quando a coluna `ordem` entrou no export (as regras, o `L` e as métricas são os mesmos do run de referência).
+No run de referência, o export gravou **L = 69** (68 regras + classe default `No`), com F1-Macro médio de **0,7204** e `id_exportacao` `f9db6fb1e569a68e` (determinístico, sem timestamp). O `id_exportacao` é o SHA-256 do payload canônico das regras — ele muda quando o modelo ou o formato do export muda (aqui, pela normalização `[PM-SD]` da D9 e pela coluna `ordem`).
 
 O SQL traz duas formas equivalentes da mesma decisão de negócio (predição `[O]`):
 
@@ -163,23 +194,26 @@ Trecho real de `outputs/rules_exported.json` (top-ranked do modelo exportado):
 
 ```text
 #1  Contract=Two year AND TotalCharges=TotalCharges_(347.9, 3273.68]                 => No
-    suporte 0,1013 | confiança 0,9875 | score 0,9917
+    suporte 0,1013 | confiança 0,9875 | score 0,7536
 #2  Contract=Two year AND PaperlessBilling=No AND PhoneService=Yes AND SeniorCitizen=0 => No
-    suporte 0,1075 | confiança 0,9857 | score 0,8689
+    suporte 0,1075 | confiança 0,9857 | score 0,7361
 #3  Contract=Two year AND PaperlessBilling=No AND SeniorCitizen=0                    => No
-    suporte 0,1193 | confiança 0,9847 | score 0,8175
+    suporte 0,1193 | confiança 0,9847 | score 0,7286
 ```
 
-E a regra de churn (`Churn = Yes`) do ranking exportado:
+E duas regras de churn (`Churn = Yes`) do ranking exportado:
 
 ```text
-#70 Contract=Month-to-month                                                               => Yes
-    suporte 0,2354 | confiança 0,4271 | score 0,1039
+#14 Contract=Month-to-month AND InternetService=Fiber optic AND OnlineSecurity=No   => Yes
+    suporte 0,1466 | confiança 0,5812
+#40 Dependents=No AND OnlineSecurity=No AND PaymentMethod=Electronic check
+    AND TechSupport=No                                                             => Yes
+    suporte 0,1015 | confiança 0,6015
 ```
 
 Leitura de negócio: **cliente de contrato mensal é o perfil de churn** — e **cliente de contrato de dois anos é cliente retido**. São segmentos acionáveis por um time de CRM, com a justificativa embutida na própria regra (`suporte` = porte do segmento, `confiança` = taxa de acerto da regra, `score` = prioridade no ranking).
 
-Estrutura do modelo exportado (L = 73): **71 regras `No` e 1 regra `Yes`** (`Contract=Month-to-month`), com classe default `No`. Isso é consequência direta da poda M1 fiel ao paper: cada regra que acerta ao menos uma transação remove **todas** as transações que cobre do restante a classificar (Algorithm 1, linhas 3–15), de modo que as regras de alta confiança sobre contratos longos e valores baixos "consomem" o restante e sobra no topo do ranking uma regra ampla de churn. O comportamento resultante é o que a validação cruzada mede: `recall_Yes = 0,5158` e `precisão_Yes = 0,6186` (§6).
+Estrutura do modelo exportado (L = 69): **53 regras `No` e 15 regras `Yes`**, com classe default `No`. O churn é descrito por regras acionáveis e específicas (contrato mensal + fibra óptica + sem suporte técnico/segurança online + pagamento por boleto eletrônico), em vez de uma única regra ampla. O comportamento resultante é o que a validação cruzada mede: `recall_Yes = 0,6993` e `precisão_Yes = 0,5439` (§6).
 
 ## 9. Como reproduzir
 
